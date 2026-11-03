@@ -1,0 +1,120 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+ * Life Agent — "Jarvis" HUD theme on shadcn tokens.
+ * The app is dark-only, so the tokens live on :root.
+ * Extra tokens beyond stock shadcn: --success, --warning.
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.625rem;
+
+  --background: #060a10;
+  --foreground: #e6f1f7;
+
+  --card: #0b121b;
+  --card-foreground: #e6f1f7;
+  --popover: #0b121b;
+  --popover-foreground: #e6f1f7;
+
+  --primary: #3edbff; /* HUD cyan */
+  --primary-foreground: #04131a;
+
+  --secondary: #13202d;
+  --secondary-foreground: #e6f1f7;
+
+  --muted: #13202d;
+  --muted-foreground: #8da2b3;
+
+  --accent: #13202d; /* shadcn hover surface */
+  --accent-foreground: #e6f1f7;
+
+  --destructive: #ff6b6b;
+  --success: #5be49b;
+  --warning: #ffb547;
+
+  --border: #1c2c3b;
+  --input: #1c2c3b;
+  --ring: #3edbff;
+
+  --chart-1: #3edbff;
+  --chart-2: #ffb547;
+  --chart-3: #5be49b;
+  --chart-4: #3b5466;
+  --chart-5: #ff6b6b;
+
+  --sidebar: #070c13;
+  --sidebar-foreground: #e6f1f7;
+  --sidebar-primary: #3edbff;
+  --sidebar-primary-foreground: #04131a;
+  --sidebar-accent: #13202d;
+  --sidebar-accent-foreground: #e6f1f7;
+  --sidebar-border: #1c2c3b;
+  --sidebar-ring: #3edbff;
+}
+
+@theme inline {
+  --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  /* Small mono label used for HUD section headers. */
+  .hud-label {
+    @apply font-mono text-[11px] tracking-[0.14em] uppercase;
+  }
+}
