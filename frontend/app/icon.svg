@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36">
+  <!-- Life Agent CoreMark (same as components/hud.tsx), transparent background -->
+  <circle cx="18" cy="18" r="15.5" fill="none" stroke="#3edbff" stroke-width="2.25" stroke-dasharray="72 25" />
+  <circle cx="18" cy="18" r="9.5" fill="none" stroke="#3edbff" stroke-opacity="0.45" stroke-width="1.5" />
+  <circle cx="18" cy="18" r="4.25" fill="#3edbff" />
+</svg>
