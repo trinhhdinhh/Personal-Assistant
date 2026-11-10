@@ -1,51 +1,35 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/*
- * Life Agent — "Jarvis" HUD theme on shadcn tokens.
- * The app is dark-only, so the tokens live on :root.
- * Extra tokens beyond stock shadcn: --success, --warning.
- */
-
 @custom-variant dark (&:is(.dark *));
 
 :root {
   --radius: 0.625rem;
-
   --background: #060a10;
   --foreground: #e6f1f7;
-
   --card: #0b121b;
   --card-foreground: #e6f1f7;
   --popover: #0b121b;
   --popover-foreground: #e6f1f7;
-
-  --primary: #3edbff; /* HUD cyan */
+  --primary: #3edbff;
   --primary-foreground: #04131a;
-
   --secondary: #13202d;
   --secondary-foreground: #e6f1f7;
-
   --muted: #13202d;
   --muted-foreground: #8da2b3;
-
-  --accent: #13202d; /* shadcn hover surface */
+  --accent: #13202d;
   --accent-foreground: #e6f1f7;
-
   --destructive: #ff6b6b;
   --success: #5be49b;
   --warning: #ffb547;
-
   --border: #1c2c3b;
   --input: #1c2c3b;
   --ring: #3edbff;
-
-  --chart-1: #3edbff;
-  --chart-2: #ffb547;
+  --chart-1: #1aa3c8; /* this week (validated pair, dark surface) */
+  --chart-2: #7e6be6; /* last week */
   --chart-3: #5be49b;
   --chart-4: #3b5466;
   --chart-5: #ff6b6b;
-
   --sidebar: #070c13;
   --sidebar-foreground: #e6f1f7;
   --sidebar-primary: #3edbff;
@@ -59,12 +43,10 @@
 @theme inline {
   --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
-
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -113,7 +95,6 @@
 }
 
 @layer utilities {
-  /* Small mono label used for HUD section headers. */
   .hud-label {
     @apply font-mono text-[11px] tracking-[0.14em] uppercase;
   }
