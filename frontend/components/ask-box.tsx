@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { suggestedQuestions } from "@/lib/mock-data";
 
-/** Quick-ask box on the Brief page. Sends the question to /ask. */
 export function AskBox() {
   const router = useRouter();
   const [q, setQ] = useState("");
@@ -31,10 +30,10 @@ export function AskBox() {
           id="ask"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Why was last week so unproductive?"
+          placeholder="How's my week looking?"
           className="h-12 text-[15px]"
         />
-        <Button type="submit" className="h-12 px-5">Send</Button>
+        <Button type="submit" className="h-12 px-5">Ask</Button>
       </form>
       <div className="flex flex-wrap gap-2">
         {suggestedQuestions.map((s) => (

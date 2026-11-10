@@ -8,11 +8,10 @@ import { agentStatus } from "@/lib/mock-data";
 import { CoreMark } from "@/components/hud";
 
 const NAV = [
-  { href: "/", num: "01", label: "Brief" },
-  { href: "/ask", num: "02", label: "Ask" },
-  { href: "/know", num: "03", label: "Know" },
-  { href: "/plan", num: "04", label: "Plan" },
-  { href: "/learn", num: "05", label: "Learn" },
+  { href: "/", num: "01", label: "Today" },
+  { href: "/week", num: "02", label: "Week ahead" },
+  { href: "/report", num: "03", label: "Report" },
+  { href: "/ask", num: "04", label: "Ask" },
 ] as const;
 
 function isActive(pathname: string, href: string) {
@@ -62,14 +61,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="bg-success size-2 rounded-full" aria-hidden="true" />
             AGENT {agentStatus.online ? "ONLINE" : "OFFLINE"}
           </div>
-          <div className="flex justify-between">
-            <span>tools</span>
-            <span className="text-foreground">{agentStatus.tools}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>critic</span>
-            <span className="text-foreground">{agentStatus.critic ? "enabled" : "off"}</span>
-          </div>
+          {agentStatus.sources.map((src) => (
+            <div key={src} className="flex justify-between">
+              <span>{src}</span>
+              <span className="text-foreground">synced</span>
+            </div>
+          ))}
           <div className="flex justify-between">
             <span>last sync</span>
             <span className="text-foreground">{agentStatus.lastSync}</span>

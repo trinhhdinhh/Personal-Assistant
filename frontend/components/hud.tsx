@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 
-/** The concentric-ring logo mark. */
 export function CoreMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 36 36" aria-hidden="true" className={cn("text-primary shrink-0", className)}>
@@ -11,7 +10,6 @@ export function CoreMark({ className }: { className?: string }) {
   );
 }
 
-/** Cyan corner brackets for "targeted" HUD panels. Parent must be `relative`. */
 export function CornerBrackets({ all = false }: { all?: boolean }) {
   const base = "border-primary pointer-events-none absolute size-3.5";
   return (
@@ -24,7 +22,6 @@ export function CornerBrackets({ all = false }: { all?: boolean }) {
   );
 }
 
-/** Mono, letter-spaced section label. */
 export function HudLabel({
   children,
   className,
@@ -58,44 +55,36 @@ export function PageHeader({
   );
 }
 
-/** Big ring gauge (0–100) with a thinner secondary arc. */
 export function ReadinessRing({
-  value,
-  secondary,
-  label,
+  score,
+  max = 10,
+  level,
 }: {
-  value: number;
-  secondary: number;
-  label: string;
+  score: number;
+  max?: number;
+  level: string;
 }) {
-  const r1 = 84;
-  const r2 = 66;
-  const c1 = 2 * Math.PI * r1;
-  const c2 = 2 * Math.PI * r2;
+  const r = 84;
+  const c = 2 * Math.PI * r;
   return (
-    <svg viewBox="0 0 220 220" role="img" aria-label={label} className="w-full max-w-[220px]">
+    <svg viewBox="0 0 220 220" role="img" aria-label={`Readiness ${score} out of ${max}, ${level}`} className="w-full max-w-[220px]">
       <circle cx="110" cy="110" r="100" fill="none" stroke="var(--border)" strokeWidth="1" />
       <circle cx="110" cy="110" r="100" fill="none" stroke="var(--primary)" strokeOpacity="0.35" strokeWidth="1" strokeDasharray="2 8" />
-      <circle cx="110" cy="110" r={r1} fill="none" stroke="var(--muted)" strokeWidth="10" />
+      <circle cx="110" cy="110" r={r} fill="none" stroke="var(--muted)" strokeWidth="10" />
       <circle
-        cx="110" cy="110" r={r1} fill="none" stroke="var(--primary)" strokeWidth="10" strokeLinecap="round"
-        strokeDasharray={`${(value / 100) * c1} ${c1}`} transform="rotate(-90 110 110)"
+        cx="110" cy="110" r={r} fill="none" stroke="var(--primary)" strokeWidth="10" strokeLinecap="round"
+        strokeDasharray={`${(score / max) * c} ${c}`} transform="rotate(-90 110 110)"
       />
-      <circle
-        cx="110" cy="110" r={r2} fill="none" stroke="var(--warning)" strokeOpacity="0.7" strokeWidth="2"
-        strokeDasharray={`${(secondary / 100) * c2} ${c2}`} transform="rotate(-90 110 110)"
-      />
-      <text x="110" y="114" textAnchor="middle" fill="var(--foreground)" fontSize="52" fontWeight="600" fontFamily="var(--font-sans)">
-        {value}
+      <text x="110" y="112" textAnchor="middle" fill="var(--foreground)" fontSize="56" fontWeight="600" fontFamily="var(--font-sans)">
+        {score}
       </text>
-      <text x="110" y="142" textAnchor="middle" fill="var(--muted-foreground)" fontSize="11" letterSpacing="2" fontFamily="var(--font-mono)">
-        OF 100
+      <text x="110" y="140" textAnchor="middle" fill="var(--muted-foreground)" fontSize="11" letterSpacing="2" fontFamily="var(--font-mono)">
+        {`OF ${max} · ${level.toUpperCase()}`}
       </text>
     </svg>
   );
 }
 
-/** Row of daily status cells (kept / missed / pending). */
 export function DayStrip({
   days,
   label,
