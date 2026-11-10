@@ -14,13 +14,14 @@ npm run dev      # http://localhost:3000
 
 | Path | What |
 |---|---|
-| `app/page.tsx` | 01 Brief (dashboard + daily brief) |
-| `app/ask/` | 02 Ask (agent chat + tool trace + approval card) |
-| `app/know/` | 03 Know (stats, scatter, downfalls, correlations) |
-| `app/plan/` | 04 Plan (week grid, focus windows) |
-| `app/learn/` | 05 Learn (n-of-1 experiments) |
+| `app/page.tsx` | 01 Today (readiness, 3 suggestions, schedule with free gaps) |
+| `app/week/` | 02 Week ahead (per-day forecast, why, suggested changes) |
+| `app/report/` | 03 Weekly report (this week vs last, did my advice work?) |
+| `app/ask/` | 04 Ask (agent chat + agent steps) |
 | `components/ui/` | shadcn components (add more with `npx shadcn@latest add <name>`) |
-| `components/hud.tsx` | HUD pieces: logo mark, corner brackets, readiness ring, day strip |
+| `components/hud.tsx` | HUD pieces: logo mark, corner brackets, readiness ring |
+| `components/suggestion.tsx` | One suggestion with its evidence and an Add to calendar button |
+| `components/sleep-chart.tsx` | Sleep per night, this week vs last |
 | `components/app-shell.tsx` | Sidebar + layout |
 | `lib/mock-data.ts` | **All data** — synthetic, shaped like the future API responses |
 | `app/globals.css` | Theme: shadcn tokens + `--success` / `--warning` |
