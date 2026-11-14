@@ -1,7 +1,7 @@
-# Local Postgres with pgvector, mirroring Supabase. Production uses Supabase via DATABASE_URL.
+# Local Postgres, mirroring Supabase. Production uses Supabase via DATABASE_URL.
 services:
   db:
-    image: pgvector/pgvector:pg17
+    image: postgres:17
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres

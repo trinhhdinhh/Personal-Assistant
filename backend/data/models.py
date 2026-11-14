@@ -1,7 +1,7 @@
 """One table per data source.
 
 Every record keeps:
-- `source`: where it came from (e.g. "apple_health", "icloud", "shortcut", "synthetic")
+- `source`: where it came from (e.g. "apple_health", "icloud", "synthetic")
 - `occurred_at`: when it happened, timezone-aware, stored in UTC
 - `local_date`: the calendar day in the user's timezone, derived on save
 - `raw`: the original payload, never discarded
@@ -11,10 +11,8 @@ using `data.timeutils.to_local_date`.
 """
 from datetime import datetime
 
-from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from pgvector.django import VectorField
 
 from data.timeutils import to_local_date
 
@@ -39,9 +37,13 @@ class SourceRecord(models.Model):
 
 
 class HealthSample(SourceRecord):
-    """A single numeric measurement, e.g. steps, heart rate, active energy."""
+    """A single numeric measurement from the Watch.
 
-    metric = models.CharField(max_length=100)  # e.g. "step_count", "heart_rate"
+    Metric names we use: "step_count", "heart_rate", "resting_heart_rate",
+    "heart_rate_variability" (ms, SDNN), "active_energy" (kcal).
+    """
+
+    metric = models.CharField(max_length=100)
     value = models.FloatField()
     unit = models.CharField(max_length=30, blank=True)
     end_at = models.DateTimeField(null=True, blank=True)
@@ -105,64 +107,97 @@ class CalendarEvent(SourceRecord):
         return f"{self.title} ({self.category}) @ {self.occurred_at:%Y-%m-%d %H:%M}"
 
 
-def _score_field() -> models.PositiveSmallIntegerField:
-    return models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+class Workout(SourceRecord):
+    """One workout from the Watch. `occurred_at` is the start time."""
+
+    activity = models.CharField(max_length=100)  # e.g. "Running", "Traditional Strength Training"
+    end_at = models.DateTimeField()
+    duration_minutes = models.PositiveIntegerField()
+    active_energy_kcal = models.FloatField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f"{self.activity} {self.duration_minutes}min @ {self.occurred_at:%Y-%m-%d %H:%M}"
 
 
-class CheckIn(SourceRecord):
-    """Daily self-report. One per local day; a resubmission updates the existing row."""
+class MoodEntry(SourceRecord):
+    """One State of Mind log from the Health app. `occurred_at` is when it was logged.
 
-    mood = _score_field()
-    energy = _score_field()
-    focus = _score_field()
-    note = models.TextField(blank=True)
+    `valence` runs from -1 (very unpleasant) to 1 (very pleasant), as Apple
+    records it. `labels` are feelings ("Stressed", "Calm") and `associations`
+    are what it was about ("Work", "Health"). Several entries can exist per day;
+    the agent only ever sees the daily average, never single entries.
+    """
+
+    class Kind(models.TextChoices):
+        MOMENTARY = "momentary"  # "how do you feel right now"
+        DAILY = "daily"  # "how was your day overall"
+
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    valence = models.FloatField(validators=[MinValueValidator(-1), MaxValueValidator(1)])
+    labels = models.JSONField(default=list, blank=True)
+    associations = models.JSONField(default=list, blank=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["local_date"], name="checkin_one_per_day"),
-            *[
-                models.CheckConstraint(
-                    condition=models.Q(**{f"{f}__gte": 1, f"{f}__lte": 5}),
-                    name=f"checkin_{f}_1_to_5",
-                )
-                for f in ("mood", "energy", "focus")
-            ],
+            models.CheckConstraint(
+                condition=models.Q(valence__gte=-1, valence__lte=1),
+                name="moodentry_valence_minus1_to_1",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(kind__in=["momentary", "daily"]),
+                name="moodentry_valid_kind",
+            ),
         ]
 
     def __str__(self) -> str:
-        return f"CheckIn {self.local_date}: mood={self.mood} energy={self.energy} focus={self.focus}"
+        return f"Mood {self.local_date}: {self.valence:+.2f} ({self.kind})"
 
 
-class Task(SourceRecord):
-    """A to-do item. `occurred_at` is when it was created.
+class Suggestion(models.Model):
+    """Advice the agent gave, saved so it can check later whether it helped.
 
-    `estimated_minutes` vs `actual_minutes` is what the Learn loop uses to
-    correct duration estimates per `task_type`.
+    Flow:
+    1. `save_suggestion` stores it with `baseline_value`: the metric's average
+       over the `BASELINE_DAYS` before `start_date`.
+    2. On or after `check_on`, `evaluate_suggestion` averages the metric from
+       `start_date` up to `check_on` and fills in `outcome_value` and `outcome`.
+
+    `metric` is one of the daily summary metrics, e.g. "mood", "readiness",
+    "sleep_hours", "steps".
     """
 
-    class Status(models.TextChoices):
-        TODO = "todo"
-        DONE = "done"
-        DROPPED = "dropped"
+    BASELINE_DAYS = 14
 
-    title = models.CharField(max_length=500)
-    task_type = models.CharField(max_length=50, blank=True)  # e.g. "reading", "problem_set"
-    estimated_minutes = models.PositiveIntegerField(null=True, blank=True)
-    actual_minutes = models.PositiveIntegerField(null=True, blank=True)
-    deadline = models.DateTimeField(null=True, blank=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.TODO)
+    class Outcome(models.TextChoices):
+        PENDING = "pending"
+        IMPROVED = "improved"
+        NO_CHANGE = "no_change"
+        WORSE = "worse"
+        NOT_ENOUGH_DATA = "not_enough_data"
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    text = models.TextField()  # what the agent told me, e.g. "Walk 3:00-3:45 on busy days"
+    reason = models.TextField(blank=True)  # the evidence it was based on
+    metric = models.CharField(max_length=50)
+    higher_is_better = models.BooleanField(default=True)
+    start_date = models.DateField()
+    check_on = models.DateField()
+    baseline_value = models.FloatField(null=True, blank=True)
+    outcome_value = models.FloatField(null=True, blank=True)
+    outcome = models.CharField(max_length=20, choices=Outcome.choices, default=Outcome.PENDING)
+    evaluated_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(check_on__gt=models.F("start_date")),
+                name="suggestion_check_after_start",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(outcome__in=["pending", "improved", "no_change", "worse", "not_enough_data"]),
+                name="suggestion_valid_outcome",
+            ),
+        ]
 
     def __str__(self) -> str:
-        return f"{self.title} [{self.status}]"
-
-
-class Note(SourceRecord):
-    """Free-text note (journal entry, check-in note, etc.) with an embedding for semantic search."""
-
-    title = models.CharField(max_length=500, blank=True)
-    body = models.TextField()
-    embedding = VectorField(dimensions=settings.EMBEDDING_DIMENSIONS, null=True, blank=True)
-
-    def __str__(self) -> str:
-        return self.title or self.body[:60]
+        return f"{self.text[:60]} [{self.metric}: {self.outcome}]"

@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 import pytest
 from django.db import IntegrityError
 
-from data.models import CalendarEvent, CheckIn, HealthSample, Note, SleepSession
+from data.models import CalendarEvent, HealthSample, MoodEntry, SleepSession, Suggestion, Workout
 from data.timeutils import to_local_date
 
 UTC = timezone.utc
@@ -47,33 +47,6 @@ def test_sleep_session_belongs_to_wake_up_day():
     assert sleep.local_date == date(2026, 10, 27)
 
 
-def _checkin(**overrides) -> CheckIn:
-    fields = dict(
-        source="shortcut",
-        occurred_at=datetime(2026, 10, 27, 14, 0, tzinfo=UTC),
-        mood=4,
-        energy=3,
-        focus=5,
-    )
-    fields.update(overrides)
-    return CheckIn(**fields)
-
-
-@pytest.mark.django_db
-def test_only_one_checkin_per_day():
-    _checkin().save()
-    with pytest.raises(IntegrityError):
-        _checkin(occurred_at=datetime(2026, 10, 27, 20, 0, tzinfo=UTC)).save()
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("field", ["mood", "energy", "focus"])
-@pytest.mark.parametrize("bad_value", [0, 6])
-def test_checkin_scores_must_be_1_to_5(field, bad_value):
-    with pytest.raises(IntegrityError):
-        _checkin(**{field: bad_value}).save()
-
-
 @pytest.mark.django_db
 def test_calendar_event_rejects_unknown_category():
     start = datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
@@ -84,16 +57,77 @@ def test_calendar_event_rejects_unknown_category():
         )
 
 
-@pytest.mark.django_db
-def test_note_embedding_round_trips():
-    embedding = [0.0] * 1536
-    embedding[0] = 1.0
-    note = Note.objects.create(
-        source="synthetic",
-        occurred_at=datetime(2026, 10, 27, 15, 0, tzinfo=UTC),
-        body="Felt foggy after a short night.",
-        embedding=embedding,
+def _mood(**overrides) -> MoodEntry:
+    fields = dict(
+        source="apple_health",
+        occurred_at=datetime(2026, 10, 27, 14, 0, tzinfo=UTC),
+        kind=MoodEntry.Kind.DAILY,
+        valence=0.4,
+        labels=["Calm"],
+        associations=["Work"],
     )
-    note.refresh_from_db()
-    assert len(note.embedding) == 1536
-    assert note.embedding[0] == 1.0
+    fields.update(overrides)
+    return MoodEntry(**fields)
+
+
+@pytest.mark.django_db
+def test_several_mood_entries_allowed_per_day():
+    _mood().save()
+    _mood(kind=MoodEntry.Kind.MOMENTARY, occurred_at=datetime(2026, 10, 27, 20, 0, tzinfo=UTC)).save()
+    assert MoodEntry.objects.filter(local_date=date(2026, 10, 27)).count() == 2
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("bad_valence", [-1.5, 1.01])
+def test_mood_valence_must_be_minus1_to_1(bad_valence):
+    with pytest.raises(IntegrityError):
+        _mood(valence=bad_valence).save()
+
+
+@pytest.mark.django_db
+def test_mood_rejects_unknown_kind():
+    with pytest.raises(IntegrityError):
+        _mood(kind="weekly").save()
+
+
+@pytest.mark.django_db
+def test_workout_belongs_to_start_day():
+    start = datetime(2026, 10, 27, 23, 0, tzinfo=UTC)  # 18:00 Oct 27 in Chicago
+    workout = Workout.objects.create(
+        source="apple_health", occurred_at=start, end_at=start + timedelta(minutes=45),
+        activity="Running", duration_minutes=45,
+    )
+    assert workout.local_date == date(2026, 10, 27)
+
+
+def _suggestion(**overrides) -> Suggestion:
+    fields = dict(
+        text="Take a 30 min walk at 3pm on busy days",
+        metric="mood",
+        start_date=date(2026, 11, 2),
+        check_on=date(2026, 11, 9),
+        baseline_value=0.1,
+    )
+    fields.update(overrides)
+    return Suggestion(**fields)
+
+
+@pytest.mark.django_db
+def test_new_suggestion_is_pending():
+    suggestion = _suggestion()
+    suggestion.save()
+    suggestion.refresh_from_db()
+    assert suggestion.outcome == Suggestion.Outcome.PENDING
+    assert suggestion.outcome_value is None
+
+
+@pytest.mark.django_db
+def test_suggestion_check_must_come_after_start():
+    with pytest.raises(IntegrityError):
+        _suggestion(check_on=date(2026, 11, 2)).save()
+
+
+@pytest.mark.django_db
+def test_suggestion_rejects_unknown_outcome():
+    with pytest.raises(IntegrityError):
+        _suggestion(outcome="great").save()
