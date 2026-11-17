@@ -1,0 +1,69 @@
+{
+  "about": "Test questions for the agent, answered against the synthetic dataset (seed 42, demo today = 2026-11-16). 'expect' is what a correct answer must say; 'must_not' is what the answer checks should block.",
+  "questions": [
+    {
+      "id": 1,
+      "question": "Do busy days affect my mood?",
+      "expect": "Yes: after days with 7h+ booked, next-day mood is clearly lower. Stated as a correlation over ~60 days.",
+      "tools": ["query_data", "compute_correlation"],
+      "must_not": ["busy days cause bad mood"]
+    },
+    {
+      "id": 2,
+      "question": "Does short sleep affect how ready I feel?",
+      "expect": "Yes: mornings after under 6h of sleep have much lower readiness. Few short nights (~11), so the answer should mention the sample size.",
+      "tools": ["query_data", "compute_correlation"]
+    },
+    {
+      "id": 3,
+      "question": "What happens to my sleep after late events?",
+      "expect": "Nights after an event ending 9:30pm or later average roughly an hour less sleep.",
+      "tools": ["get_calendar", "query_data", "compute_correlation"]
+    },
+    {
+      "id": 4,
+      "question": "Do workouts help my mood?",
+      "expect": "Mood the day after a workout is higher than after non-workout days. Correlation, not causation.",
+      "tools": ["query_data", "compute_correlation"],
+      "must_not": ["working out improves your mood"]
+    },
+    {
+      "id": 5,
+      "question": "Why do I walk less on some days?",
+      "expect": "Class days (Mon-Thu with lectures) have about 2-3k fewer steps.",
+      "tools": ["get_calendar", "query_data", "compare_periods"]
+    },
+    {
+      "id": 6,
+      "question": "Are my steps related to my HRV?",
+      "expect": "No meaningful relationship. The agent should say the data does not show a pattern.",
+      "tools": ["compute_correlation"],
+      "must_not": ["more steps raise your HRV", "steps and HRV are linked"]
+    },
+    {
+      "id": 7,
+      "question": "How's next week looking?",
+      "expect": "Thursday Nov 19 is the heaviest day (8h+), after a late Wednesday. Warns about Thursday and Friday; the weekend is light.",
+      "tools": ["get_calendar", "forecast_week"]
+    },
+    {
+      "id": 8,
+      "question": "When am I free on Thursday Nov 19?",
+      "expect": "Real gaps only, e.g. 12:15-16:00 between the lecture and the library shift. Never inside a booked event.",
+      "tools": ["find_free_time"]
+    },
+    {
+      "id": 9,
+      "question": "How did last week compare to the week before?",
+      "expect": "A Nov 9-15 vs Nov 2-8 comparison of sleep, readiness, mood, steps and workouts, with every number traceable to a tool result.",
+      "tools": ["compare_periods"]
+    },
+    {
+      "id": 10,
+      "question": "Did coffee make me sleep worse?",
+      "expect": "There is no caffeine data. The agent says it can't answer instead of guessing.",
+      "tools": [],
+      "must_not": ["any number about coffee or caffeine"]
+    }
+  ]
+}
