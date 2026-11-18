@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "data",
+    "agent",
 ]
 
 MIDDLEWARE = [
@@ -82,6 +83,13 @@ USER_TIME_ZONE = os.environ.get("USER_TIME_ZONE", "America/Chicago")
 
 # Pins "today" for demos on the synthetic dataset (e.g. 2026-11-16). Unset = the real date.
 DEMO_TODAY = os.environ.get("DEMO_TODAY") or None
+
+# The agent's OpenRouter key (school key). Put it in the repo-root .env (git-ignored), never in code:
+#   OPENROUTER_API_KEY=sk-or-...
+# Only the backend reads it; it is never sent to the frontend or written to logs.
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE_URL = "https://openrouter.ai/api"  # OpenRouter's Anthropic-compatible endpoint
+AGENT_MODEL = os.environ.get("AGENT_MODEL") or "anthropic/claude-opus-5.5"
 
 LANGUAGE_CODE = "en-us"
 USE_I18N = True
