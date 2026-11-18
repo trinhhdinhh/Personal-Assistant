@@ -119,6 +119,38 @@ def test_refusal_stops_the_run(fake):
     assert run.stop == "declined" and run.answer
 
 
+FREE_THU = reply(tool_use("find_free_time", {"date": "2026-11-19"}), stop="tool_use")
+
+
+def test_failed_check_gets_one_retry(fake):
+    client = fake(
+        FREE_THU,
+        reply(text("You're free at 14:30. Short gaps cause stress.")),   # made-up time + causal claim
+        reply(text("You're free from 12:15 to 16:00 on Thursday.")),     # fixed
+    )
+    run = run_agent("When am I free Thursday?")
+
+    assert run.stop == "answered" and run.retries == 1
+    assert run.answer == "You're free from 12:15 to 16:00 on Thursday."
+    assert all(c["passed"] for c in run.checks)
+    retry_prompt = client.requests[2]["messages"][-1]["content"]
+    assert "did not pass the automatic checks" in retry_prompt and "14:30" in retry_prompt
+
+
+def test_answer_failing_twice_is_blocked(fake):
+    fake(
+        FREE_THU,
+        reply(text("You're free at 14:30.")),
+        reply(text("You're free at 14:45.")),
+    )
+    run = run_agent("When am I free Thursday?")
+
+    assert run.stop == "blocked"
+    assert "couldn't back up" in run.answer
+    assert run.blocked_answer == "You're free at 14:45."
+    assert not run.checks[0]["passed"]
+
+
 def test_requests_send_tools_system_prompt_and_date(fake):
     client = fake(reply(text("Hi.")))
     run_agent("Hello")

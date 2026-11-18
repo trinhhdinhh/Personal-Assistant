@@ -37,6 +37,16 @@ class Command(BaseCommand):
         self.stdout.write("")
         self.stdout.write(run.answer)
         self.stdout.write("")
+        for check in run.checks:
+            mark = self.style.SUCCESS("pass") if check["passed"] else self.style.ERROR("FAIL")
+            self.stdout.write(f"  {mark} {check['name']}")
+            for problem in check["problems"]:
+                self.stdout.write(f"       - {problem}")
+        if run.retries:
+            self.stdout.write(self.style.WARNING(f"  The answer was rewritten {run.retries}x after failing a check."))
+        if run.blocked_answer:
+            self.stdout.write(self.style.WARNING("  Blocked answer (not shown to the user):"))
+            self.stdout.write(f"  {run.blocked_answer}")
         self.stdout.write(self.style.NOTICE(
             f"[{run.stop}] {run.model_calls} model calls, {len(run.steps)} tool calls, "
             f"{run.input_tokens:,} in / {run.output_tokens:,} out tokens, {run.model}"))

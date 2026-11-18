@@ -17,6 +17,10 @@ Safety limits:
 
 Every tool call is recorded as a Step, so the user can see how the answer
 was reached, and so the answer checks can compare numbers with tool results.
+
+Answer checks (agent/checks.py) run on every final answer. If one fails, the
+model gets one retry with the problems listed; if it fails again, the answer
+is blocked and the user sees why instead.
 """
 import json
 import logging
@@ -27,6 +31,7 @@ import anthropic
 from django.conf import settings
 
 from agent import llm
+from agent.checks import check_answer, retry_message
 from agent.prompts import SYSTEM_PROMPT, today_note
 from agent.registry import TOOL_DEFINITIONS, run_tool
 from data.timeutils import today
@@ -35,7 +40,10 @@ logger = logging.getLogger(__name__)
 
 MAX_STEPS = 10        # model calls per question
 MAX_TOKENS = 16000    # per model call
+MAX_RETRIES = 1       # chances to fix an answer that failed the checks
 FINAL_NUDGE = "You have used all your tool calls. Answer now using only the results above."
+BLOCKED = ("I couldn't back up my answer with your data, so I'm not showing it. "
+           "Try asking a narrower question.")
 
 
 @dataclass
@@ -54,7 +62,10 @@ class AgentRun:
     question: str
     answer: str = ""
     steps: list[Step] = field(default_factory=list)
-    stop: str = ""             # answered | step_limit | cut_off | declined | error
+    stop: str = ""             # answered | step_limit | blocked | cut_off | declined | error
+    checks: list[dict] = field(default_factory=list)  # results of the last answer check
+    retries: int = 0           # times the model rewrote its answer after failing a check
+    blocked_answer: str = ""   # the answer that was held back, kept for debugging
     model_calls: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
@@ -70,10 +81,13 @@ def run_agent(question: str, history: list[dict] | None = None, max_steps: int =
     """Answer one question. `history` is earlier turns as [{"role", "content"}] text messages."""
     run = AgentRun(question=question, model=settings.AGENT_MODEL)
     messages = [*(history or []), {"role": "user", "content": question}]
+    date_line = today_note(today())
     system = [
         {"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}},
-        {"type": "text", "text": today_note(today())},
+        {"type": "text", "text": date_line},
     ]
+    # Numbers the answer may use besides tool results: the conversation and the agent's own rules.
+    context = "\n".join([SYSTEM_PROMPT, date_line, *(str(m["content"]) for m in messages)])
 
     while True:
         last_call = run.model_calls + 1 >= max_steps
@@ -101,7 +115,17 @@ def run_agent(question: str, history: list[dict] | None = None, max_steps: int =
             # A cut-off reply may hold a half-written tool call, so never run its tools.
             return _finish(run, "cut_off", text or "The answer was cut off. Try a narrower question.")
         if response.stop_reason != "tool_use":
-            return _finish(run, "step_limit" if last_call else "answered", text)
+            report = check_answer(text, run.steps, context)
+            run.checks = report.to_list()
+            if report.passed:
+                return _finish(run, "step_limit" if last_call else "answered", text)
+            if run.retries < MAX_RETRIES and not last_call:
+                run.retries += 1
+                messages.append({"role": "assistant", "content": response.content})
+                messages.append({"role": "user", "content": retry_message(report)})
+                continue
+            run.blocked_answer = text
+            return _finish(run, "blocked", BLOCKED)
 
         # The model wants tools: keep its whole reply (thinking blocks included), run the tools,
         # and send every result back in ONE user message.
