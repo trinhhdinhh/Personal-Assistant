@@ -169,6 +169,14 @@ for _tool in TOOL_DEFINITIONS:
 
 TOOL_FUNCTIONS: dict[str, Callable[..., dict]] = {t["name"]: getattr(tools, t["name"]) for t in TOOL_DEFINITIONS}
 
+# Tools that change stored data. Left out when the agent runs read-only (the Claude connector).
+WRITE_TOOLS = {"save_suggestion"}
+
+
+def tool_definitions(allow_writes: bool = True) -> list[dict]:
+    """The tool list to send to the model, without write tools when `allow_writes` is False."""
+    return [t for t in TOOL_DEFINITIONS if allow_writes or t["name"] not in WRITE_TOOLS]
+
 
 def _json_default(value):
     if isinstance(value, (date, datetime)):
@@ -176,14 +184,16 @@ def _json_default(value):
     raise TypeError(f"Cannot serialize {type(value).__name__}")
 
 
-def run_tool(name: str, tool_input: dict) -> tuple[str, bool]:
+def run_tool(name: str, tool_input: dict, allowed: set[str] | None = None) -> tuple[str, bool]:
     """Run one tool call from the model. Returns (result text, is_error).
 
-    The result text goes back to the model as the tool_result content.
+    The result text goes back to the model as the tool_result content. `allowed` limits
+    which tools may run (a read-only run refuses write tools even if the model asks).
     """
     function = TOOL_FUNCTIONS.get(name)
-    if function is None:
-        return f"Unknown tool {name!r}. Available tools: {sorted(TOOL_FUNCTIONS)}", True
+    if function is None or (allowed is not None and name not in allowed):
+        available = sorted(allowed if allowed is not None else TOOL_FUNCTIONS)
+        return f"Unknown tool {name!r}. Available tools: {available}", True
     try:
         result = function(**tool_input)
     except ToolError as error:

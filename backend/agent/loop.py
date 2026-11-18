@@ -33,7 +33,7 @@ from django.conf import settings
 from agent import llm
 from agent.checks import check_answer, retry_message
 from agent.prompts import SYSTEM_PROMPT, today_note
-from agent.registry import TOOL_DEFINITIONS, run_tool
+from agent.registry import run_tool, tool_definitions
 from data.timeutils import today
 
 logger = logging.getLogger(__name__)
@@ -77,14 +77,25 @@ class AgentRun:
 
 # ---------- the loop ----------
 
-def run_agent(question: str, history: list[dict] | None = None, max_steps: int = MAX_STEPS) -> AgentRun:
-    """Answer one question. `history` is earlier turns as [{"role", "content"}] text messages."""
+READ_ONLY_NOTE = ("This conversation is read-only: you cannot save suggestions, so skip save_suggestion. "
+                  "You can still make calendar files with make_ics_event for the user to add.")
+
+
+def run_agent(question: str, history: list[dict] | None = None, max_steps: int = MAX_STEPS,
+              allow_writes: bool = True) -> AgentRun:
+    """Answer one question. `history` is earlier turns as [{"role", "content"}] text messages.
+
+    With `allow_writes=False` (the Claude connector) the agent cannot use tools that change
+    stored data: they are left out of the tool list and refused if called anyway.
+    """
     run = AgentRun(question=question, model=settings.AGENT_MODEL)
+    tools = tool_definitions(allow_writes)
+    allowed = {t["name"] for t in tools}
     messages = [*(history or []), {"role": "user", "content": question}]
     date_line = today_note(today())
     system = [
         {"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}},
-        {"type": "text", "text": date_line},
+        {"type": "text", "text": date_line if allow_writes else f"{date_line}\n{READ_ONLY_NOTE}"},
     ]
     # Numbers the answer may use besides tool results: the conversation and the agent's own rules.
     context = "\n".join([SYSTEM_PROMPT, date_line, *(str(m["content"]) for m in messages)])
@@ -96,7 +107,7 @@ def run_agent(question: str, history: list[dict] | None = None, max_steps: int =
                 model=settings.AGENT_MODEL,
                 max_tokens=MAX_TOKENS,
                 system=system,
-                tools=TOOL_DEFINITIONS,
+                tools=tools,
                 tool_choice={"type": "none"} if last_call else {"type": "auto"},
                 messages=messages,
             )
@@ -130,15 +141,15 @@ def run_agent(question: str, history: list[dict] | None = None, max_steps: int =
         # The model wants tools: keep its whole reply (thinking blocks included), run the tools,
         # and send every result back in ONE user message.
         messages.append({"role": "assistant", "content": response.content})
-        results = [_call_tool(block, run) for block in response.content if block.type == "tool_use"]
+        results = [_call_tool(block, run, allowed) for block in response.content if block.type == "tool_use"]
         if run.model_calls + 1 >= max_steps:
             results.append({"type": "text", "text": FINAL_NUDGE})
         messages.append({"role": "user", "content": results})
 
 
-def _call_tool(block, run: AgentRun) -> dict:
+def _call_tool(block, run: AgentRun, allowed: set[str]) -> dict:
     started = time.monotonic()
-    content, is_error = run_tool(block.name, block.input)
+    content, is_error = run_tool(block.name, block.input, allowed)
     ms = round((time.monotonic() - started) * 1000)
 
     result = content if is_error else json.loads(content)

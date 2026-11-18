@@ -101,6 +101,8 @@ Goal: open the Claude app on my phone, laptop or the web and ask things like *"h
 - **Summaries only.** The connector returns daily summaries, never raw mood entries or raw health samples.
 - **No writes.** The connector can't change my calendar or anything else. Suggestions still come as files I choose to add.
 
+**How to deploy and connect it:** see `DEPLOY.md` (Render + `render.yaml`, OAuth sign-in, the `/mcp` connector).
+
 **Order**
 1. Host the backend and database first (needed for the Health Auto Export data anyway).
 2. Build the agent and get it working (the main project).

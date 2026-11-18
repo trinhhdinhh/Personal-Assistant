@@ -13,6 +13,7 @@ data_exports/
 __pycache__/
 *.pyc
 .pytest_cache/
+backend/staticfiles/
 
 # Node
 node_modules/
