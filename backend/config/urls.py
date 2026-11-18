@@ -8,7 +8,8 @@ from data import views
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/report", views.report),
-    path("api/forecast", views.forecast),
-    path("api/brief", views.brief),
+    path("api/forecast", agent_views.forecast),
+    path("api/brief", agent_views.brief),
     path("api/chat", agent_views.chat),  # POST, runs the agent
+    path("api/suggestions", agent_views.save_suggestion),  # POST, the user added a suggestion
 ]

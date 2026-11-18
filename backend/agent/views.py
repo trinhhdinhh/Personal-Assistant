@@ -11,12 +11,17 @@ import json
 import logging
 import time
 
+from datetime import date
+
 from django.core.exceptions import ImproperlyConfigured
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
+from agent import tools
+from agent.briefing import brief_view, week_view
 from agent.loop import AgentRun, run_agent
+from agent.models import Suggestion
 
 logger = logging.getLogger(__name__)
 
@@ -94,3 +99,64 @@ def chat(request):
         logger.exception("Agent run failed")
         return JsonResponse({"error": "The agent hit an internal error. Please try again."}, status=500)
     return JsonResponse(_public(run, time.monotonic() - started))
+
+
+# ---------- Week and Today pages (no model calls) ----------
+
+def _date_param(request, name: str):
+    """A ?name=YYYY-MM-DD query value, None if absent. Raises ValueError if malformed."""
+    value = request.GET.get(name)
+    return date.fromisoformat(value) if value else None
+
+
+@require_GET
+def forecast(request):
+    """GET /api/forecast?start=2026-11-16 → the Week page. Default start is today."""
+    try:
+        return JsonResponse(week_view(_date_param(request, "start")))
+    except ValueError:
+        return _bad("start must be a date like 2026-11-16.")
+
+
+@require_GET
+def brief(request):
+    """GET /api/brief?date=2026-11-16 → the Today page. Default is today."""
+    try:
+        return JsonResponse(brief_view(_date_param(request, "date")))
+    except ValueError:
+        return _bad("date must be a date like 2026-11-16.")
+
+
+@csrf_exempt  # local JSON API; add login before hosting (see CLAUDE.md)
+@require_POST
+def save_suggestion(request):
+    """POST /api/suggestions: the user added a suggestion, so remember it for follow-up.
+
+    Body: {"text", "metric", "direction", "start_date"}. Adding the same suggestion twice
+    returns the one already saved.
+    """
+    try:
+        body = json.loads(request.body or b"{}")
+    except json.JSONDecodeError:
+        return _bad("Body must be JSON.")
+    if not isinstance(body, dict):
+        return _bad("Body must be a JSON object.")
+
+    existing = Suggestion.objects.filter(text=body.get("text"), start_date=body.get("start_date")).first() \
+        if isinstance(body.get("text"), str) and _is_date(body.get("start_date")) else None
+    if existing:
+        return JsonResponse({"suggestion_id": existing.pk, "check_on": existing.check_on.isoformat(), "new": False})
+    try:
+        saved = tools.save_suggestion(text=body.get("text"), metric=body.get("metric"),
+                                      direction=body.get("direction"), start_date=body.get("start_date"))
+    except (tools.ToolError, AttributeError) as error:
+        return _bad(str(error) or "text, metric, direction and start_date are required.")
+    return JsonResponse({**saved, "new": True}, status=201)
+
+
+def _is_date(value) -> bool:
+    try:
+        date.fromisoformat(value)
+        return True
+    except (TypeError, ValueError):
+        return False

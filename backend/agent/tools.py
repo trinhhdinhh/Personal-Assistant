@@ -301,6 +301,8 @@ def forecast_week(start_date: str | None = None) -> dict:
             "booked_hours": row["booked_hours"],
             "busy": row["booked_hours"] >= BUSY_HOURS,
             "late_event": row["late_event"],
+            "after_busy_day": busy_before,
+            "after_late_event": late_before,
             "expected_readiness": expected["readiness"],
             "expected_mood": expected["mood"],
             "expected_mood_label": mood_label(expected["mood"]),

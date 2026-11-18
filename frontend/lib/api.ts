@@ -39,3 +39,88 @@ export async function askAgent(question: string, history: ChatTurn[]): Promise<C
   if (!res.ok) throw new Error(data.error ?? `The agent returned an error (${res.status}).`);
   return data;
 }
+
+// ---------- Week + Today  (GET /api/forecast, GET /api/brief, backend/agent/briefing.py) ----------
+
+export type Risk = "Low" | "Medium" | "High";
+
+/** A suggestion on the Week or Today page. `track` is saved for follow-up when the user adds it. */
+export type PageSuggestion = {
+  id: string;
+  title: string;
+  time: string | null;
+  why: string;
+  evidence: string;
+  ics: IcsFile | null;
+  track: { text: string; metric: string; direction: "up" | "down"; start_date: string };
+};
+
+export type ForecastDay = {
+  label: string;
+  date: string;
+  iso: string;
+  booked: number;
+  readiness: number | null;
+  risk: Risk;
+  note: string | null;
+  today: boolean;
+};
+
+export type WeekForecast = {
+  label: string;
+  similarDays: number;
+  usualReadiness: number | null;
+  days: ForecastDay[];
+  factors: { cause: string; effect: string; size: string; n: number; early: boolean }[];
+  adjustments: PageSuggestion[];
+  toolCalls: number;
+  notes: string[];
+};
+
+export type ScheduleItem = { start: string; end: string; title: string; kind: "event" | "suggested" };
+
+export type Brief = {
+  date: string;
+  dateLabel: string;
+  health: {
+    asOf: string;
+    readiness: { score: number; max: number; level: string };
+    vitals: { label: string; value: string; note: string }[];
+    mood: string | null;
+  } | null;
+  schedule: ScheduleItem[];
+  suggestions: PageSuggestion[];
+  headsUp: { day: string; text: string } | null;
+  toolCalls: number;
+};
+
+export async function getForecast(): Promise<WeekForecast> {
+  const res = await fetch(`${BACKEND}/api/forecast`);
+  if (!res.ok) throw new Error(`forecast failed: ${res.status}`);
+  return res.json();
+}
+
+export async function getBrief(): Promise<Brief> {
+  const res = await fetch(`${BACKEND}/api/brief`);
+  if (!res.ok) throw new Error(`brief failed: ${res.status}`);
+  return res.json();
+}
+
+/** Called from the browser when the user adds a suggestion, so the agent can follow up on it. */
+export async function trackSuggestion(track: PageSuggestion["track"]): Promise<{ check_on: string }> {
+  const res = await fetch("/api/suggestions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(track),
+  });
+  if (!res.ok) throw new Error(`saving the suggestion failed: ${res.status}`);
+  return res.json();
+}
+
+/** Hands the browser an .ics file to open in the user's calendar app. */
+export function downloadIcs(file: IcsFile) {
+  const url = URL.createObjectURL(new Blob([file.ics], { type: "text/calendar" }));
+  const link = Object.assign(document.createElement("a"), { href: url, download: file.filename });
+  link.click();
+  URL.revokeObjectURL(url);
+}

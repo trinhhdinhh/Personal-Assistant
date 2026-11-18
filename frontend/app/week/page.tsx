@@ -1,9 +1,11 @@
+import { Suspense } from "react";
+
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/hud";
 import { SuggestionItem } from "@/components/suggestion";
-import { forecast, type ForecastDay, type Risk } from "@/lib/mock-data";
+import { getForecast, type ForecastDay, type Risk, type WeekForecast } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const riskBadge: Record<Risk, "success" | "warning" | "destructive"> = {
@@ -13,20 +15,51 @@ const riskBadge: Record<Risk, "success" | "warning" | "destructive"> = {
 };
 
 const MAX_BOOKED = 10;
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+function monthOf(iso: string) {
+  return MONTHS[Number(iso.slice(5, 7)) - 1];
+}
 
 export default function WeekPage() {
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
+      <Suspense fallback={<PageHeader eyebrow="Week ahead" title="How your week will probably go" description="Loading your forecast…" />}>
+        <WeekContent />
+      </Suspense>
+    </div>
+  );
+}
+
+async function WeekContent() {
+  let forecast: WeekForecast;
+  try {
+    forecast = await getForecast();
+  } catch {
+    return (
+      <PageHeader
+        eyebrow="Week ahead"
+        title="Forecast unavailable"
+        description="Couldn't reach the backend. Start it with `python manage.py runserver` and reload."
+      />
+    );
+  }
+  return <WeekView forecast={forecast} />;
+}
+
+function WeekView({ forecast }: { forecast: WeekForecast }) {
+  return (
+    <>
       <PageHeader
         eyebrow={`Week ahead · ${forecast.label}`}
         title="How your week will probably go"
-        description={`Predicted from your calendar and ${forecast.similarDays} similar past days.`}
-        actions={<Badge variant="success" className="h-8">✓ CHECKED</Badge>}
+        description={`Predicted from your calendar and ${forecast.similarDays} days of your own history.`}
+        actions={<Badge variant="success" className="h-8">FROM YOUR DATA · {forecast.toolCalls} TOOL CALLS</Badge>}
       />
 
       <section aria-label="Daily forecast" className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         {forecast.days.map((d) => (
-          <DayCard key={d.date} day={d} />
+          <DayCard key={d.iso} day={d} />
         ))}
       </section>
 
@@ -37,9 +70,11 @@ export default function WeekPage() {
             <CardDescription>Nothing changes unless you add it.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            {forecast.adjustments.map((a) => (
-              <SuggestionItem key={a.id} title={a.title} why={a.why} ics={a.ics} />
-            ))}
+            {forecast.adjustments.length ? (
+              forecast.adjustments.map((a) => <SuggestionItem key={a.id} suggestion={a} />)
+            ) : (
+              <p className="text-muted-foreground text-sm">No rough days ahead, so nothing to change.</p>
+            )}
           </CardContent>
         </Card>
 
@@ -66,21 +101,27 @@ export default function WeekPage() {
                     <TableCell>{f.cause}</TableCell>
                     <TableCell className="text-muted-foreground">{f.effect}</TableCell>
                     <TableCell className="text-right font-mono">{f.size}</TableCell>
-                    <TableCell className="text-muted-foreground text-right font-mono">{f.n}</TableCell>
+                    <TableCell className="text-muted-foreground text-right font-mono">
+                      {f.n}
+                      {f.early && <span className="text-warning" title="Under 14 days: early and uncertain"> *</span>}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            <p className="text-muted-foreground text-[13px]">Patterns from your own data, not guarantees.</p>
+            <p className="text-muted-foreground text-[13px]">
+              Links in your own data, not causes or guarantees.
+              {forecast.factors.some((f) => f.early) && " * Under 14 days, so early and uncertain."}
+            </p>
           </CardContent>
         </Card>
       </section>
-    </div>
+    </>
   );
 }
 
 function DayCard({ day }: { day: ForecastDay }) {
-  const pct = Math.round((day.booked / MAX_BOOKED) * 100);
+  const pct = Math.min(100, Math.round((day.booked / MAX_BOOKED) * 100));
   return (
     <div
       className={cn(
@@ -91,11 +132,11 @@ function DayCard({ day }: { day: ForecastDay }) {
     >
       <div className="flex items-baseline justify-between">
         <span className="font-semibold">{day.label}</span>
-        <span className="text-muted-foreground font-mono text-xs">{day.today ? "TODAY" : `NOV ${day.date}`}</span>
+        <span className="text-muted-foreground font-mono text-xs">{day.today ? "TODAY" : `${monthOf(day.iso)} ${day.date}`}</span>
       </div>
       <div className="flex flex-col gap-0.5">
         <span className="font-mono text-3xl">
-          {day.readiness}
+          {day.readiness ?? "–"}
           <span className="text-muted-foreground text-sm">/10</span>
         </span>
         <span className="text-muted-foreground text-xs">predicted readiness</span>

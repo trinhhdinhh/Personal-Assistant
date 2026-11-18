@@ -18,11 +18,3 @@ def report(request):
     else:
         start = last_full_week()
     return JsonResponse(weekly_report(start))
-
-
-def forecast(request):
-    return JsonResponse({"todo": "forecast"})
-
-
-def brief(request):
-    return JsonResponse({"todo": "brief"})
