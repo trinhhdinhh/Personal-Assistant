@@ -125,7 +125,23 @@ export const forecast = {
 
 // ---------- Weekly report  (GET /api/report?week=…) ----------
 
-export const report = {
+export type Mood = "pleasant" | "neutral" | "unpleasant";
+
+/** The JSON returned by GET /api/report (backend/data/report.py). null = no data that day. */
+export type Report = {
+  label: string;
+  stats: { label: string; value: string; suffix?: string | null; delta: string; tone: Tone }[];
+  days: string[];
+  sleepThis: (number | null)[];
+  sleepLast: (number | null)[];
+  readinessThis: (number | null)[];
+  moodThis: (Mood | null)[];
+  timeUse: { category: string; hours: number; delta: string }[];
+  changes: { title: string; body: string }[];
+  followUps: { id: number; suggestion: string; result: string; tone: Tone; detail: string }[];
+};
+
+export const report: Report = {
   label: "NOV 9 – 15 vs NOV 2 – 8",
   stats: [
     { label: "Avg sleep", value: "6h 52m", delta: "+20m", tone: "success" as Tone },
@@ -139,7 +155,7 @@ export const report = {
   sleepThis: [6.9, 7.3, 6.2, 5.8, 7.1, 7.6, 7.2],
   sleepLast: [6.5, 6.1, 6.8, 5.4, 6.6, 7.4, 6.9],
   readinessThis: [7, 7, 6, 4, 5, 7, 7],
-  moodThis: ["pleasant", "pleasant", "neutral", "unpleasant", "pleasant", "pleasant", "pleasant"] as ("pleasant" | "neutral" | "unpleasant")[],
+  moodThis: ["pleasant", "pleasant", "neutral", "unpleasant", "pleasant", "pleasant", "pleasant"],
   timeUse: [
     { category: "Class", hours: 12, delta: "0" },
     { category: "Study", hours: 10, delta: "+3" },
@@ -209,5 +225,3 @@ export const sampleRun = {
 export const recentChats = ["How's my week looking?", "Why was Thursday rough?", "Does gym help my mood?"];
 
 export const suggestedQuestions = ["How's my week looking?", "Why was last week better?", "When should I work out this week?"];
-
-export type Report = typeof report;

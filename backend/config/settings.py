@@ -80,6 +80,9 @@ TIME_ZONE = "UTC"
 USE_TZ = True
 USER_TIME_ZONE = os.environ.get("USER_TIME_ZONE", "America/Chicago")
 
+# Pins "today" for demos on the synthetic dataset (e.g. 2026-11-16). Unset = the real date.
+DEMO_TODAY = os.environ.get("DEMO_TODAY") or None
+
 LANGUAGE_CODE = "en-us"
 USE_I18N = True
 
