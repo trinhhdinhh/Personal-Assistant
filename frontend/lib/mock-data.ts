@@ -209,3 +209,5 @@ export const sampleRun = {
 export const recentChats = ["How's my week looking?", "Why was Thursday rough?", "Does gym help my mood?"];
 
 export const suggestedQuestions = ["How's my week looking?", "Why was last week better?", "When should I work out this week?"];
+
+export type Report = typeof report;

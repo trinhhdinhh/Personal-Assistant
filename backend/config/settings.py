@@ -62,8 +62,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Postgres with pgvector. Locally this is the docker-compose container; in
-# production it is the Supabase connection string.
+# Postgres. Locally this is the docker-compose container; in production it is
+# the hosted database's connection string.
 DATABASES = {
     "default": dj_database_url.config(
         env="DATABASE_URL",
@@ -79,9 +79,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 TIME_ZONE = "UTC"
 USE_TZ = True
 USER_TIME_ZONE = os.environ.get("USER_TIME_ZONE", "America/Chicago")
-
-# Dimension of note embeddings. Changing it requires a new migration.
-EMBEDDING_DIMENSIONS = 1536
 
 LANGUAGE_CODE = "en-us"
 USE_I18N = True

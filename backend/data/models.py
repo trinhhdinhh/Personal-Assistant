@@ -1,7 +1,7 @@
 """One table per data source.
 
 Every record keeps:
-- `source`: where it came from (e.g. "apple_health", "icloud", "shortcut", "synthetic")
+- `source`: where it came from (e.g. "apple_health", "icloud", "synthetic")
 - `occurred_at`: when it happened, timezone-aware, stored in UTC
 - `local_date`: the calendar day in the user's timezone, derived on save
 - `raw`: the original payload, never discarded
@@ -11,10 +11,7 @@ using `data.timeutils.to_local_date`.
 """
 from datetime import datetime
 
-from django.conf import settings
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from pgvector.django import VectorField
 
 from data.timeutils import to_local_date
 
@@ -103,66 +100,3 @@ class CalendarEvent(SourceRecord):
 
     def __str__(self) -> str:
         return f"{self.title} ({self.category}) @ {self.occurred_at:%Y-%m-%d %H:%M}"
-
-
-def _score_field() -> models.PositiveSmallIntegerField:
-    return models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
-
-
-class CheckIn(SourceRecord):
-    """Daily self-report. One per local day; a resubmission updates the existing row."""
-
-    mood = _score_field()
-    energy = _score_field()
-    focus = _score_field()
-    note = models.TextField(blank=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["local_date"], name="checkin_one_per_day"),
-            *[
-                models.CheckConstraint(
-                    condition=models.Q(**{f"{f}__gte": 1, f"{f}__lte": 5}),
-                    name=f"checkin_{f}_1_to_5",
-                )
-                for f in ("mood", "energy", "focus")
-            ],
-        ]
-
-    def __str__(self) -> str:
-        return f"CheckIn {self.local_date}: mood={self.mood} energy={self.energy} focus={self.focus}"
-
-
-class Task(SourceRecord):
-    """A to-do item. `occurred_at` is when it was created.
-
-    `estimated_minutes` vs `actual_minutes` is what the Learn loop uses to
-    correct duration estimates per `task_type`.
-    """
-
-    class Status(models.TextChoices):
-        TODO = "todo"
-        DONE = "done"
-        DROPPED = "dropped"
-
-    title = models.CharField(max_length=500)
-    task_type = models.CharField(max_length=50, blank=True)  # e.g. "reading", "problem_set"
-    estimated_minutes = models.PositiveIntegerField(null=True, blank=True)
-    actual_minutes = models.PositiveIntegerField(null=True, blank=True)
-    deadline = models.DateTimeField(null=True, blank=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.TODO)
-
-    def __str__(self) -> str:
-        return f"{self.title} [{self.status}]"
-
-
-class Note(SourceRecord):
-    """Free-text note (journal entry, check-in note, etc.) with an embedding for semantic search."""
-
-    title = models.CharField(max_length=500, blank=True)
-    body = models.TextField()
-    embedding = VectorField(dimensions=settings.EMBEDDING_DIMENSIONS, null=True, blank=True)
-
-    def __str__(self) -> str:
-        return self.title or self.body[:60]
