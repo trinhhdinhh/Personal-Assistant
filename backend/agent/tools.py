@@ -19,8 +19,7 @@ from django.utils import timezone as dj_timezone
 
 from agent.models import Suggestion
 from data.models import CalendarEvent
-from data.report import mood_label
-from data.summaries import daily_summaries
+from data.summaries import daily_summaries, mood_label
 from data.timeutils import today, user_tz
 
 MIN_DAYS = 14          # fewer days than this and a pattern is "early"

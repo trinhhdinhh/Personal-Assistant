@@ -24,6 +24,21 @@ TOTALS = {"step_count": "steps", "active_energy": "active_energy", "workout_minu
 AVERAGES = {"heart_rate_variability": "hrv", "resting_heart_rate": "resting_hr",
             "readiness": "readiness", "state_of_mind_valence": "mood"}
 
+# Apple "State of Mind" valence runs -1..1. Slightly Pleasant and above counts as pleasant.
+PLEASANT = 0.14
+UNPLEASANT = -0.14
+
+
+def mood_label(valence: float | None) -> str | None:
+    """pleasant / neutral / unpleasant for a mood valence, or None if there is none."""
+    if valence is None:
+        return None
+    if valence >= PLEASANT:
+        return "pleasant"
+    if valence <= UNPLEASANT:
+        return "unpleasant"
+    return "neutral"
+
 
 def daily_summaries(start: date, end: date) -> list[dict]:
     """One row per day from start to end (both included), oldest first."""

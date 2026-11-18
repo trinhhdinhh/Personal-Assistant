@@ -11,16 +11,13 @@ from collections import defaultdict
 from datetime import date, timedelta
 from statistics import mean
 
+from agent.followups import follow_ups
 from data.models import CalendarEvent
-from data.summaries import daily_summaries
+from data.summaries import PLEASANT, daily_summaries, mood_label  # noqa: F401  (mood_label re-exported)
 from data.timeutils import today
 
 DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 MINUS = "−"  # typographic minus, as used in the UI
-
-# Apple "State of Mind" valence runs -1..1. Slightly Pleasant and above counts as pleasant.
-PLEASANT = 0.14
-UNPLEASANT = -0.14
 
 BUSY_HOURS = 7
 
@@ -60,18 +57,8 @@ def weekly_report(week_start: date) -> dict:
         "moodThis": [mood_label(r["mood"]) for r in this_rows],
         "timeUse": _time_use(week_start, prev_start),
         "changes": _changes(this, last),
-        "followUps": [],  # filled once suggestions are saved and evaluated
+        "followUps": follow_ups(week_start + timedelta(days=7)),  # checked suggestions (agent/followups.py)
     }
-
-
-def mood_label(valence: float | None) -> str | None:
-    if valence is None:
-        return None
-    if valence >= PLEASANT:
-        return "pleasant"
-    if valence <= UNPLEASANT:
-        return "unpleasant"
-    return "neutral"
 
 
 # ---------- one week's numbers, rounded as displayed ----------

@@ -164,12 +164,15 @@ function ReportView({ report }: { report: Report }) {
       <Card>
         <CardHeader>
           <CardTitle>Did my advice work?</CardTitle>
-          <CardDescription>The agent checks its past suggestions against your data.</CardDescription>
+          <CardDescription>
+            The agent checks suggestions you took against your data a week later. It shows what changed
+            afterwards, not proof the suggestion caused it.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-3">
           {report.followUps.length === 0 && (
             <p className="text-muted-foreground text-sm md:col-span-3">
-              No suggestions to check yet. Follow-ups appear a week after the agent makes a suggestion.
+              No suggestions to check yet. Add one from the Today or Week page and it shows up here.
             </p>
           )}
           {report.followUps.map((f) => (

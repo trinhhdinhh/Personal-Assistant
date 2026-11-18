@@ -1,4 +1,5 @@
 """Week and Today pages, built from the synthetic data (demo today = Monday 2026-11-16)."""
+from datetime import date
 from io import StringIO
 
 import pytest
@@ -83,3 +84,28 @@ def test_bad_suggestion_is_rejected(seeded):
     response = Client().post("/api/suggestions", {"text": "x", "metric": "vibes", "direction": "up",
                                                   "start_date": "2026-11-16"}, content_type="application/json")
     assert response.status_code == 400 and "metric" in response.json()["error"]
+
+
+# ---------- follow-ups on the Report ----------
+
+def test_report_follow_ups_check_taken_suggestions(seeded):
+    from data.report import weekly_report
+    call_command("seed_demo_suggestions", stdout=StringIO())
+    waiting = Client().post("/api/suggestions", {"text": "Walk today", "metric": "steps", "direction": "up",
+                                                 "start_date": "2026-11-16"}, content_type="application/json")
+    assert waiting.status_code == 201
+
+    cards = weekly_report(date(2026, 11, 9))["followUps"]
+    assert len(cards) == 3
+    assert {c["result"] for c in cards} <= {"Improved", "No clear change", "Got worse", "Not enough data"}
+    assert all("→" in c["detail"] and "days after" in c["detail"] for c in cards)
+    assert not Suggestion.objects.filter(status="pending", check_on__lte="2026-11-16").exists()  # all due ones checked
+
+
+def test_waiting_suggestion_shows_its_check_date(seeded):
+    from data.report import weekly_report
+    Client().post("/api/suggestions", {"text": "Walk today", "metric": "steps", "direction": "up",
+                                       "start_date": "2026-11-16"}, content_type="application/json")
+    cards = weekly_report(date(2026, 11, 9))["followUps"]
+    assert cards == [{"id": cards[0]["id"], "suggestion": "Walk today", "result": "Checking Nov 23",
+                      "tone": "primary", "detail": cards[0]["detail"]}]
