@@ -1,8 +1,7 @@
 from datetime import date
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET
 
 from data.report import last_full_week, weekly_report
 
@@ -27,9 +26,3 @@ def forecast(request):
 
 def brief(request):
     return JsonResponse({"todo": "brief"})
-
-
-@csrf_exempt
-@require_POST
-def chat(request):
-    return JsonResponse({"todo": "chat"})

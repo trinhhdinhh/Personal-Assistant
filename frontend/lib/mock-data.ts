@@ -198,30 +198,6 @@ export const report: Report = {
   ],
 };
 
-// ---------- Ask  (POST /api/chat) ----------
-
-export type TraceStep = { tool: string; seconds: number; summary: string; critic?: boolean };
-
-export const sampleRun = {
-  id: 212,
-  question: "How's my week looking?",
-  steps: 7,
-  seconds: 3.9,
-  answerIntro: "Mostly fine, with one rough spot. Here's your predicted readiness for each day:",
-  answerOutro:
-    "Thursday is the risk: 8h booked right after a late Wednesday. On similar days your readiness dropped about 1.8 points (n = 21). That's a pattern, not a guarantee. Moving Wednesday's late study block earlier is the easiest fix, and you're free 4:00–5:30 that day.",
-  suggestion: { title: "Study block · Wed Nov 18, 4:00–5:30 PM", file: "study-wed-nov18.ics" },
-  trace: [
-    { tool: "get_calendar", seconds: 0.2, summary: "Nov 16–22 → 23 events · 34h booked" },
-    { tool: "query_data", seconds: 0.3, summary: "readiness, sleep · last 90 days" },
-    { tool: "forecast_week", seconds: 0.6, summary: "Thu readiness 4/10 · 21 similar days" },
-    { tool: "compute_correlation", seconds: 0.3, summary: "late events → sleep · r = −0.41 · n = 17" },
-    { tool: "find_free_time", seconds: 0.1, summary: "Wed 4:00–5:30 PM free" },
-    { tool: "make_ics_event", seconds: 0.1, summary: "study-wed-nov18.ics" },
-    { tool: "critic", seconds: 0.7, summary: "6/6 numbers traced · wording kept correlational", critic: true },
-  ] as TraceStep[],
-};
-
-export const recentChats = ["How's my week looking?", "Why was Thursday rough?", "Does gym help my mood?"];
+// ---------- Ask ----------
 
 export const suggestedQuestions = ["How's my week looking?", "Why was last week better?", "When should I work out this week?"];
