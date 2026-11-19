@@ -1,27 +1,38 @@
-"""Load the synthetic dataset into the database.
+"""Load the synthetic dataset into the database, up to today.
 
-    python manage.py seed_synthetic            # replace synthetic rows
-    python manage.py seed_synthetic --seed 7   # a different (still fake) dataset
+    python manage.py seed_synthetic                     # Sep 1 to yesterday, plus the coming week's calendar
+    python manage.py seed_synthetic --today 2026-11-16  # the fixed date the tests and the eval use
+    python manage.py seed_synthetic --seed 7            # a different (still fake) dataset
+
+"Today" defaults to the real date (or DEMO_TODAY if set). Run it again on a new
+day and the history grows by that day; earlier days stay exactly the same.
 
 Only rows with source="synthetic" are deleted, so real data is never touched.
 """
+from datetime import date
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from data import synthetic
+from data import synthetic, timeutils
 from data.models import CalendarEvent, HealthSample, SleepSession
 from data.timeutils import to_local_date
 
 
 class Command(BaseCommand):
-    help = "Replace all synthetic rows with a freshly generated 60-day dataset."
+    help = "Load synthetic data from Sep 1 to yesterday, plus the coming week's calendar."
 
     def add_arguments(self, parser):
         parser.add_argument("--seed", type=int, default=42)
+        parser.add_argument("--today", type=date.fromisoformat, default=None,
+                            help="The date to build the data around (YYYY-MM-DD). Default: today.")
 
     @transaction.atomic
-    def handle(self, *args, seed: int, **options):
-        history, next_week = synthetic.generate(seed)
+    def handle(self, *args, seed: int, today: date | None = None, **options):
+        if isinstance(today, str):  # call_command(..., today="2026-11-16") skips the argparse type
+            today = date.fromisoformat(today)
+        today = today or timeutils.today()
+        history, next_week = synthetic.generate(seed, today)
 
         for model in (HealthSample, SleepSession, CalendarEvent):
             model.objects.filter(source=synthetic.SOURCE).delete()
@@ -72,6 +83,7 @@ class Command(BaseCommand):
         HealthSample.objects.bulk_create(samples)
 
         self.stdout.write(self.style.SUCCESS(
-            f"Seeded {len(history)} days of history ({synthetic.FIRST_DAY} to {history[-1].date}) "
-            f"and next week's calendar: {len(events)} events, {len(sleeps)} nights, {len(samples)} health samples."
+            f"Seeded {len(history)} days of history ({history[0].date} to {history[-1].date}) and the calendar "
+            f"for {next_week[0].date} to {next_week[-1].date}: {len(events)} events, {len(sleeps)} nights, "
+            f"{len(samples)} health samples."
         ))

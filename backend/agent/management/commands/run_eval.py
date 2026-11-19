@@ -6,9 +6,10 @@
     python manage.py run_eval --save             # also write eval_results/<time>.json
 
 Makes real model calls through OpenRouter (roughly 2-6 per question).
-Runs on the synthetic dataset only, with "today" pinned to 2026-11-16.
-Each question runs inside a rolled-back transaction, so suggestions the
-agent saves during the eval don't stay in the database.
+Runs on the synthetic dataset only, with "today" pinned to 2026-11-16 so the
+known answers hold. Everything runs inside a rolled-back transaction: the
+eval's own copy of the data and any suggestions the agent saves are thrown
+away afterwards, so your current demo data is left as it was.
 """
 import json
 import time
@@ -42,7 +43,6 @@ class Command(BaseCommand):
         for table in (HealthSample, SleepSession, CalendarEvent):
             if table.objects.exclude(source=synthetic.SOURCE).exists():
                 raise CommandError("The database has real (non-synthetic) data. Run the eval on a synthetic-only database.")
-        call_command("seed_synthetic", stdout=StringIO())
         settings.DEMO_TODAY = synthetic.TODAY.isoformat()
         if model:
             settings.AGENT_MODEL = model
@@ -50,6 +50,21 @@ class Command(BaseCommand):
         questions = [q for q in load_questions() if not only or q["id"] in only]
         self.stdout.write(f"Running {len(questions)} questions on {settings.AGENT_MODEL} (today = {settings.DEMO_TODAY})\n")
 
+        with transaction.atomic():
+            call_command("seed_synthetic", today=synthetic.TODAY, stdout=StringIO())
+            results = self._run(questions)
+            transaction.set_rollback(True)  # put the demo data back the way it was
+
+        self._summary(results)
+        if save:
+            RESULTS_DIR.mkdir(exist_ok=True)
+            path = RESULTS_DIR / f"{datetime.now():%Y%m%d-%H%M%S}-{settings.AGENT_MODEL.replace('/', '_')}.json"
+            path.write_text(json.dumps({"model": settings.AGENT_MODEL, "today": settings.DEMO_TODAY,
+                                        "results": results}, indent=2, default=str))
+            self.stdout.write(f"\nSaved {path.relative_to(settings.BASE_DIR)}")
+
+    def _run(self, questions: list[dict]) -> list[dict]:
+        """Ask each question; each runs in its own rolled-back savepoint."""
         results = []
         for q in questions:
             self.stdout.write(f"Q{q['id']:>2} {q['question']}")
@@ -63,14 +78,7 @@ class Command(BaseCommand):
             result = {**grade(q, run), "seconds": round(time.monotonic() - started, 1)}
             results.append(result)
             self._print(result)
-
-        self._summary(results)
-        if save:
-            RESULTS_DIR.mkdir(exist_ok=True)
-            path = RESULTS_DIR / f"{datetime.now():%Y%m%d-%H%M%S}-{settings.AGENT_MODEL.replace('/', '_')}.json"
-            path.write_text(json.dumps({"model": settings.AGENT_MODEL, "today": settings.DEMO_TODAY,
-                                        "results": results}, indent=2, default=str))
-            self.stdout.write(f"\nSaved {path.relative_to(settings.BASE_DIR)}")
+        return results
 
     def _print(self, r: dict) -> None:
         mark = self.style.SUCCESS("PASS") if r["passed"] else self.style.ERROR("FAIL")

@@ -21,7 +21,7 @@ ROW_KEYS = {
 
 @pytest.fixture
 def seeded(db):
-    call_command("seed_synthetic", stdout=StringIO())
+    call_command("seed_synthetic", today="2026-11-16", stdout=StringIO())
 
 
 def _at(day: date, hour: int, minute: int = 0) -> datetime:

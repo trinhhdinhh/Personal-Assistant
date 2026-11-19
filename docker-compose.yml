@@ -1,4 +1,4 @@
-# Local Postgres for development. Production uses a hosted database via DATABASE_URL.
+# Local Postgres for the app (started by start-demo.sh).
 services:
   db:
     image: postgres:17

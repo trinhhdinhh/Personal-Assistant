@@ -66,7 +66,7 @@ For demo day the app uses the synthetic dataset, which has the same shape as the
 
 ## Testing
 
-A synthetic 60-day dataset with planted patterns (e.g. busy days lower next-day mood, short sleep lowers readiness) and about 10 test questions with known answers. Success means the agent finds the planted patterns, picks sensible tools, and the checks block unsupported claims.
+A synthetic dataset (Sep 1 onward, growing daily) with planted patterns (e.g. busy days lower next-day mood, short sleep lowers readiness) and about 10 test questions with known answers. Success means the agent finds the planted patterns, picks sensible tools, and the checks block unsupported claims.
 
 ## Out of scope (for now)
 
@@ -87,7 +87,8 @@ Everything runs **locally on my Mac**. There is no hosting or deployment.
 
 - **Backend:** Django + Postgres (docker-compose), started with `runserver`.
 - **Frontend:** the Next.js dashboard (Today, Week, Report, Ask pages) at localhost:3000.
-- **Data:** the synthetic 60-day dataset, with `DEMO_TODAY` pinning "today" to the dataset's Monday.
+- **Data:** synthetic data that grows every day like real data: history from Sep 1, 2026 up to yesterday, plus the calendar for the coming week. Each date's data is fixed, so past days never change and each new day is added on top. The tests and the eval always use the fixed date Mon Nov 16, 2026, so their known answers don't change. `DEMO_TODAY` is optional and pins "today" to any date.
+- **One command:** `./start-demo.sh` starts the database, reseeds today's data and demo suggestions, then runs the backend and the dashboard.
 - **Model:** my OpenRouter key in the git-ignored `.env`.
 
 The goal for demo day is that this runs reliably end to end and the agent's steps and answer checks are visible on the Ask page.

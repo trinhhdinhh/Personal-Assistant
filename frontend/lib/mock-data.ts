@@ -2,7 +2,7 @@
  * Mock data for the UI while the backend is being built.
  * Sources (per CLAUDE.md): iCloud Calendar + Apple Watch / Health app.
  * All values are synthetic. Never put real personal data in this file.
- * The demo "today" is Monday, Nov 16, 2026.
+ * The backend builds the synthetic data around the real date (see start-demo.sh).
  */
 
 export type Tone = "primary" | "success" | "warning" | "destructive" | "muted";

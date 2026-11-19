@@ -1,6 +1,6 @@
 """The agent's tools must find the planted patterns in the synthetic data, and nothing stronger.
 
-Synthetic history: 2026-09-17 to 2026-11-15. Demo today: Monday 2026-11-16.
+Synthetic history: 2026-09-01 to 2026-11-15. Demo today: Monday 2026-11-16.
 """
 import json
 from io import StringIO
@@ -13,7 +13,7 @@ from agent.models import Suggestion
 from agent.registry import TOOL_DEFINITIONS, TOOL_FUNCTIONS, run_tool
 from agent.tools import ToolError
 
-START, END = "2026-09-17", "2026-11-15"
+START, END = "2026-09-01", "2026-11-15"
 
 
 @pytest.fixture

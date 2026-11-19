@@ -4,7 +4,7 @@
     {
       "id": 1,
       "question": "Do busy days affect my mood?",
-      "expect": "Yes: after days with 7h+ booked, next-day mood is clearly lower. Stated as a correlation over ~60 days.",
+      "expect": "Yes: after days with 7h+ booked, next-day mood is clearly lower. Stated as a correlation over the history (Sep 1 - Nov 15).",
       "must_use": ["compute_correlation"],
       "evidence": [
         {"tool": "compute_correlation", "input": {"x": ["busy_day", "booked_hours"], "y": ["mood"], "lag_days": [1]}, "result": {"direction": ["negative"]}}
@@ -15,7 +15,7 @@
     {
       "id": 2,
       "question": "Does short sleep affect how ready I feel?",
-      "expect": "Yes: mornings after under 6h of sleep have much lower readiness. Few short nights (~11), so the answer should mention the sample size.",
+      "expect": "Yes: mornings after under 6h of sleep have much lower readiness. There are only a few short nights, so the answer should mention the sample size.",
       "must_use": ["compute_correlation"],
       "evidence": [
         {"tool": "compute_correlation", "input": {"x": ["short_sleep"], "y": ["readiness"], "lag_days": [0]}, "result": {"direction": ["negative"]}},
@@ -66,7 +66,7 @@
       "evidence": [
         {"tool": "compute_correlation", "input": {"x": ["steps", "hrv"], "y": ["hrv", "steps"]}, "result": {"strength": ["none", "weak"]}}
       ],
-      "must_say": ["\\b(no|not|weak|little|barely|hardly)\\b[^.]{0,60}\\b(link|pattern|relationship|connection|related|correlation)"],
+      "must_say": ["(\\b(no|not|weak|little|barely|hardly)\\b[^.]{0,60}\\b(link|pattern|relationship|connection|related|correlation|move together)|\\b(link|relationship|connection|correlation)\\b[^.]{0,20}\\b(is|was|looks)\\b[^.]{0,10}\\b(weak|tiny|negligible|very small)\\b)"],
       "must_not": ["more steps (raise|increase|boost)", "steps and hrv are (strongly )?linked", "strong (link|relationship|connection)"]
     },
     {

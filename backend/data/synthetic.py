@@ -1,11 +1,20 @@
-"""Synthetic dataset: 60 days of fake history plus next week's calendar.
+"""Synthetic dataset that grows by one day every day, like real data arriving.
 
 Used for development, demos and the agent's test questions. Nothing here is
 real personal data. Every record gets `source="synthetic"`.
 
-The demo "today" is Monday, Nov 16, 2026 (same as the frontend mock data).
-History covers the 60 days before it (Sep 17 - Nov 15). Next week (Nov 16 - 22)
-only has calendar events, so the agent has something to forecast.
+  - history: every day from Sep 1, 2026 up to yesterday (full health data + calendar)
+  - the coming week: today and the 6 days after it (calendar only, so the
+    agent has something to forecast)
+
+Each date's data comes from its own random generator, seeded by the date. So
+a day never changes once it exists: running `seed_synthetic` tomorrow keeps
+every earlier day exactly the same and adds one new day, the way Apple Health
+keeps your past and adds today.
+
+The tests and the eval use TODAY (Monday, Nov 16, 2026), so their known
+answers never change. The week of Nov 16 has a calendar planned by hand
+(DEMO_WEEK) so the eval's forecast and free-time questions have fixed answers.
 
 Planted patterns (the agent should find these, and nothing stronger):
   1. Busy day (7h+ booked)   -> lower mood the NEXT day
@@ -27,10 +36,10 @@ from zoneinfo import ZoneInfo
 TZ = ZoneInfo("America/Chicago")
 SOURCE = "synthetic"
 
-TODAY = date(2026, 11, 16)
-HISTORY_DAYS = 60
-FIRST_DAY = TODAY - timedelta(days=HISTORY_DAYS)  # Sep 17
-NEXT_WEEK = [TODAY + timedelta(days=i) for i in range(7)]  # Nov 16 - 22
+FIRST_DAY = date(2026, 9, 1)  # history always starts here
+TODAY = date(2026, 11, 16)  # the fixed "today" for the tests and the eval (a Monday)
+NEXT_WEEK = [TODAY + timedelta(days=i) for i in range(7)]  # Nov 16 - 22: the coming week for TODAY
+DEMO_WEEK = TODAY  # Monday of the week whose calendar is planned by hand (see DEMO_WEEK_PLAN)
 
 BUSY_HOURS = 7.0  # a day with at least this many hours booked counts as busy
 LATE_END = time(21, 30)  # an event ending at or after this counts as late
@@ -171,9 +180,9 @@ OPTIONAL = {
         ("Gym", "16:30", "17:30", "gym", 0.3)],
 }
 
-# Next week is fixed by hand so the forecast has a clear story:
-# a late Wednesday followed by a heavy (8h+) Thursday.
-NEXT_WEEK_PLAN = {
+# The week of Nov 16 - 22 is planned by hand so the eval's forecast has a clear story:
+# a late Wednesday followed by a heavy (8h+) Thursday. Every other week is random.
+DEMO_WEEK_PLAN = {
     0: ["Study block", "Gym"],
     1: ["Study block"],
     2: ["Study block", "Gym", "Late study"],
@@ -184,11 +193,18 @@ NEXT_WEEK_PLAN = {
 }
 
 
-def _events_for(day: date, rng: random.Random, chosen: list[str] | None = None) -> list[Event]:
+def _rng(seed: int, day: date, part: str) -> random.Random:
+    """The random generator for one date. Same seed + date + part always gives the same numbers."""
+    return random.Random(f"{seed}:{day.isoformat()}:{part}")
+
+
+def _events_for(day: date, seed: int) -> list[Event]:
     weekday = day.weekday()
+    planned = DEMO_WEEK_PLAN[weekday] if DEMO_WEEK <= day < DEMO_WEEK + timedelta(days=7) else None
+    rng = _rng(seed, day, "calendar")
     events = [Event(t, c, _at(day, s), _at(day, e)) for t, s, e, c in FIXED[weekday]]
     for title, start, end, category, probability in OPTIONAL[weekday]:
-        picked = title in chosen if chosen is not None else rng.random() < probability
+        picked = title in planned if planned is not None else rng.random() < probability
         if picked:
             events.append(Event(title, category, _at(day, start), _at(day, end)))
     return sorted(events, key=lambda e: e.start)
@@ -196,20 +212,21 @@ def _events_for(day: date, rng: random.Random, chosen: list[str] | None = None) 
 
 # ---------- generation ----------
 
-def generate(seed: int = 42) -> tuple[list[Day], list[Day]]:
-    """Return (history, next_week). History has full data; next week has only events."""
-    rng = random.Random(seed)
+def generate(seed: int = 42, today: date = TODAY) -> tuple[list[Day], list[Day]]:
+    """Return (history, next_week) for `today`.
 
-    history = [Day(FIRST_DAY + timedelta(days=i)) for i in range(HISTORY_DAYS)]
-    for day in history:
-        day.events = _events_for(day.date, rng)
-
+    History is every day from FIRST_DAY to yesterday, with full data. Next week is today
+    and the 6 days after it, with calendar events only.
+    """
+    history = [Day(FIRST_DAY + timedelta(days=i)) for i in range((today - FIRST_DAY).days)]
     previous: Day | None = None
     for day in history:
-        _fill_health(day, previous, rng)
+        day.events = _events_for(day.date, seed)
+        _fill_health(day, previous, _rng(seed, day.date, "health"))
         previous = day
 
-    next_week = [Day(d, events=_events_for(d, rng, NEXT_WEEK_PLAN[d.weekday()])) for d in NEXT_WEEK]
+    coming = [today + timedelta(days=i) for i in range(7)]
+    next_week = [Day(d, events=_events_for(d, seed)) for d in coming]
     return history, next_week
 
 
@@ -254,7 +271,7 @@ def _fill_health(day: Day, prev: Day | None, rng: random.Random) -> None:
     active_energy = round(steps * 0.045 + (workout_minutes or 0) * 7 + rng.gauss(0, 40))
 
     # Mood logged in the evening (patterns 1 and 5). About 1 in 10 days has no log.
-    valence = (0.25 - 0.4 * busy_yesterday + 0.3 * worked_out_yesterday
+    valence = (0.25 - 0.4 * busy_yesterday + 0.35 * worked_out_yesterday
                + 0.06 * (readiness - 6) + rng.gauss(0, 0.22))
     valence = round(min(1.0, max(-1.0, valence)), 2)
     log_mood = rng.random() > 0.1

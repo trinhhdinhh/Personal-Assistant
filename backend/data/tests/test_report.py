@@ -17,7 +17,7 @@ PAGE_KEYS = {"label", "stats", "days", "sleepThis", "sleepLast", "readinessThis"
 
 @pytest.fixture
 def seeded(db):
-    call_command("seed_synthetic", stdout=StringIO())
+    call_command("seed_synthetic", today="2026-11-16", stdout=StringIO())
 
 
 @pytest.fixture
@@ -55,7 +55,8 @@ def test_stats_match_the_daily_summaries(report):
     assert _stat(report, "Avg readiness")["value"] == str(readiness)
     assert _stat(report, "Avg steps")["value"] == f"{steps:,}"
     assert _stat(report, "Workouts")["value"] == str(workouts)
-    assert _stat(report, "Workouts")["delta"] == f"+{workouts - sum(1 for r in last if r['workout_minutes'])}"
+    workout_change = workouts - sum(1 for r in last if r["workout_minutes"])
+    assert int(_stat(report, "Workouts")["delta"].replace("−", "-")) == workout_change  # the page uses a real minus sign
     assert report["sleepThis"] == [r["sleep_hours"] for r in this]
     assert report["sleepLast"] == [r["sleep_hours"] for r in last]
 

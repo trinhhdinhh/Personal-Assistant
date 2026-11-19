@@ -1,5 +1,6 @@
 """The synthetic dataset must contain the planted patterns, and nothing else strong."""
 from datetime import date
+from io import StringIO
 from statistics import correlation, mean
 
 import pytest
@@ -29,9 +30,9 @@ def test_same_seed_gives_same_data():
     assert [d.metric("readiness") for d in again] == [d.metric("readiness") for d in HISTORY]
 
 
-def test_covers_60_days_before_demo_today():
-    assert len(HISTORY) == 60
-    assert HISTORY[0].date == date(2026, 9, 17)
+def test_covers_sep_1_to_the_day_before_demo_today():
+    assert len(HISTORY) == 76
+    assert HISTORY[0].date == date(2026, 9, 1)
     assert HISTORY[-1].date == date(2026, 11, 15)
     assert [d.date for d in NEXT_WEEK][0] == date(2026, 11, 16)
 
@@ -95,12 +96,52 @@ def test_seed_command_replaces_only_synthetic_rows():
     real = HealthSample.objects.create(
         source="apple_health", occurred_at=HISTORY[0].samples[0].start, metric="step_count", value=1,
     )
-    call_command("seed_synthetic")
-    call_command("seed_synthetic")  # running twice must not duplicate
+    call_command("seed_synthetic", today="2026-11-16")
+    call_command("seed_synthetic", today="2026-11-16")  # running twice must not duplicate
 
-    assert SleepSession.objects.filter(source="synthetic").count() == 60
+    assert SleepSession.objects.filter(source="synthetic").count() == len(HISTORY)
     assert CalendarEvent.objects.filter(source="synthetic").count() == sum(
         len(d.events) for d in HISTORY + NEXT_WEEK
     )
-    assert HealthSample.objects.filter(source="synthetic", metric="readiness").count() == 60
+    assert HealthSample.objects.filter(source="synthetic", metric="readiness").count() == len(HISTORY)
     assert HealthSample.objects.filter(pk=real.pk).exists()
+
+
+# ---------- built around any "today" ----------
+
+def test_history_runs_from_sep_1_to_yesterday():
+    history, coming = synthetic.generate(today=date(2026, 12, 3))  # a Thursday
+    assert history[0].date == date(2026, 9, 1) and history[-1].date == date(2026, 12, 2)
+    assert [d.date for d in coming] == [date(2026, 12, 3 + i) for i in range(7)]
+    assert all(d.sleep is None for d in coming)  # the coming week is calendar only
+
+
+def test_past_days_never_change_as_new_days_are_added():
+    """Like real data: tomorrow's run keeps every earlier day and adds one more."""
+    def snapshot(day):
+        return (day.sleep.asleep_minutes, [(s.metric, s.value) for s in day.samples],
+                [(e.title, e.start) for e in day.events])
+
+    later, _ = synthetic.generate(today=date(2026, 12, 20))
+    assert [snapshot(d) for d in later[:len(HISTORY)]] == [snapshot(d) for d in HISTORY]
+    assert len(later) == len(HISTORY) + 34
+
+
+def test_a_future_day_has_the_same_calendar_before_and_after_it_happens():
+    _, coming = synthetic.generate(today=date(2026, 11, 26))
+    later, _ = synthetic.generate(today=date(2026, 12, 3))
+    thursday = next(d for d in later if d.date == date(2026, 11, 26))
+    assert [(e.title, e.start) for e in coming[0].events] == [(e.title, e.start) for e in thursday.events]
+
+
+def test_the_demo_week_is_planned_by_hand():
+    thursday = next(d for d in NEXT_WEEK if d.date == date(2026, 11, 19))
+    assert thursday.booked_hours >= 8  # the heavy Thursday the eval asks about
+
+
+@pytest.mark.django_db
+def test_seed_command_defaults_to_the_current_date(settings):
+    settings.DEMO_TODAY = "2026-12-03"
+    call_command("seed_synthetic", stdout=StringIO())
+    assert SleepSession.objects.order_by("-local_date").first().local_date == date(2026, 12, 2)
+    assert CalendarEvent.objects.order_by("-local_date").first().local_date == date(2026, 12, 9)
