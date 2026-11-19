@@ -27,9 +27,9 @@ It's a university course project (LSU, agentic systems option). The grader wants
 | Source | What it gives | How it arrives |
 |---|---|---|
 | iCloud Calendar | Events, how busy each day is | Private calendar share link (.ics) |
-| Apple Watch + Health app | Sleep, heart rate, HRV, readiness, steps, workouts, mood (State of Mind) | Health Auto Export app sends it automatically |
+| Apple Watch + Health app | Sleep, heart rate, HRV, readiness, steps, workouts, mood (State of Mind) | Health Auto Export app |
 
-No other sources for now. Screen time was cut because it adds too much friction.
+For demo day the app uses the synthetic dataset, which has the same shape as these sources. Importing my real data comes later. No other sources for now. Screen time was cut because it adds too much friction.
 
 ## The agent's tools
 
@@ -70,7 +70,7 @@ A synthetic 60-day dataset with planted patterns (e.g. busy days lower next-day 
 
 ## Out of scope (for now)
 
-Screen time, manual check-ins, location, assignments, bank data, writing to the calendar, a separate mobile app, and Mac integrations (menu bar, widgets). The Claude app connector is planned for after the main agent works (see below).
+Screen time, manual check-ins, location, assignments, bank data, writing to the calendar, a separate mobile app, Mac integrations (menu bar, widgets), hosting or deploying the app, and using it from the Claude app (connector). Real data import comes after demo day.
 
 ## Timeline
 
@@ -81,30 +81,13 @@ Screen time, manual check-ins, location, assignments, bank data, writing to the 
 | Nov 23–25 | Connect the dashboard (Brief + Ask pages), run the tests, polish the demo |
 | Nov 26 | Buffer |
 
-## Use it from the Claude app, anywhere
+## How it runs (demo day)
 
-Goal: open the Claude app on my phone, laptop or the web and ask things like *"how's my week looking?"* or *"show my weekly report"*, and get answers from this agent, wherever I am.
+Everything runs **locally on my Mac**. There is no hosting or deployment.
 
-**How it works**
-1. **The agent lives online, not on my Mac.** The backend and database are hosted in the cloud, so they're always reachable. This is needed early anyway: Health Auto Export on my phone has to send data to a public address.
-2. **Data flows in on its own.** Health Auto Export sends my Watch data from my phone, and the server pulls my calendar link on a schedule. My Mac doesn't need to be on.
-3. **Claude connects through a custom connector.** The project includes a small MCP server, hosted alongside the backend, that I add in Claude under Settings › Connectors. Because it's tied to my Claude account, it works in the Claude app on web, desktop and phone.
-4. **A dashboard inside Claude.** A Claude artifact pinned to my sidebar shows the brief and weekly report by reading through the same connector.
+- **Backend:** Django + Postgres (docker-compose), started with `runserver`.
+- **Frontend:** the Next.js dashboard (Today, Week, Report, Ask pages) at localhost:3000.
+- **Data:** the synthetic 60-day dataset, with `DEMO_TODAY` pinning "today" to the dataset's Monday.
+- **Model:** my OpenRouter key in the git-ignored `.env`.
 
-**What the connector exposes**
-- Read-only views: today's brief, the weekly report, the week-ahead forecast, recent trends
-- `ask_agent`: passes my question to **this project's agent** and returns its answer and steps
-
-**Rules**
-- **This project's agent does the thinking.** The connector only passes questions and answers through. Claude's own chat must not replace the custom agent, because that's what gets graded.
-- **Login required.** The connector holds my health and mood data, so it must use a proper sign-in (OAuth). Never an open, no-login connector.
-- **Summaries only.** The connector returns daily summaries, never raw mood entries or raw health samples.
-- **No writes.** The connector can't change my calendar or anything else. Suggestions still come as files I choose to add.
-
-**How to deploy and connect it:** see `DEPLOY.md` (Render + `render.yaml`, OAuth sign-in, the `/mcp` connector).
-
-**Order**
-1. Host the backend and database first (needed for the Health Auto Export data anyway).
-2. Build the agent and get it working (the main project).
-3. Add the MCP server, connect it in Claude, and test it on my phone.
-4. Last, build the pinned dashboard in Claude.
+The goal for demo day is that this runs reliably end to end and the agent's steps and answer checks are visible on the Ask page.
