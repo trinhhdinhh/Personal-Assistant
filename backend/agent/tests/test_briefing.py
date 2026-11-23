@@ -24,17 +24,17 @@ def test_week_flags_thursday_and_explains_why(seeded):
     assert week["label"] == "NOV 16 – 22"
     assert days["Mon"]["today"] and days["Thu"]["risk"] == "High" and days["Sat"]["risk"] == "Low"
     assert days["Thu"]["note"] == "8.25h booked after a late Wed"
-    assert {f["cause"] for f in week["factors"]} >= {"7h+ booked", "Event ends 9:30pm+"}
+    assert {f["cause"] for f in week["factors"]} >= {"7h+ booked", "Event ends 9:30 PM+"}
     assert next(f for f in week["factors"] if f["cause"] == "Sleep under 6h")["early"]  # only 11 short nights
 
 
 def test_week_adjustments_fit_real_gaps_and_come_with_files(seeded):
     adjustments = {a["id"]: a for a in week_view()["adjustments"]}
     move = adjustments["move-2026-11-18"]
-    assert move["time"] == "14:45–16:15"  # Wed's first afternoon gap, well before 9:30pm
+    assert move["time"] == "2:45 PM–4:15 PM"  # Wed's first afternoon gap, well before 9:30 PM
     assert "BEGIN:VEVENT" in move["ics"]["ics"]
     assert move["track"] == {"text": move["title"], "metric": "sleep_hours", "direction": "up", "start_date": "2026-11-19"}
-    assert adjustments["walk-2026-11-19"]["time"] == "12:15–12:35"
+    assert adjustments["walk-2026-11-19"]["time"] == "12:15 PM–12:35 PM"
 
 
 def test_pages_save_nothing_on_load(seeded):
@@ -57,7 +57,7 @@ def test_brief_uses_latest_health_day_and_todays_calendar(seeded):
 def test_brief_suggestions_quote_their_pattern(seeded):
     suggestions = {s["id"]: s for s in brief_view()["suggestions"]}
     walk = suggestions["walk-2026-11-16"]
-    assert walk["time"] == "14:45–15:15" and "class days" in walk["why"] and walk["ics"]
+    assert walk["time"] == "2:45 PM–3:15 PM" and "class days" in walk["why"] and walk["ics"]
     assert suggestions["gym-2026-11-16"]["ics"] is None  # already on the calendar
 
 

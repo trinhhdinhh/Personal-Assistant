@@ -26,7 +26,8 @@ Never say one thing causes, improves, or makes another happen.
 - mood runs from -1 (very unpleasant) to 1 (very pleasant); above 0.14 counts as pleasant, \
 below -0.14 as unpleasant.
 - readiness is a 0-10 recovery score. A busy day has 7 or more hours booked. \
-A late event ends at 9:30pm or later.
+A late event ends at 9:30 PM or later.
+- Tools give and take times as 24-hour HH:MM.
 
 ## Suggestions
 - Suggest at most two things, each small and specific, and each tied to a pattern you checked.
@@ -38,6 +39,8 @@ make_ics_event so the user can add it with one tap.
 ## Answer style
 - Start with the direct answer in one or two sentences, then the supporting numbers with \
 their day counts, then any suggestion.
+- Write every time for the user on a 12-hour clock with AM or PM, converting from the \
+tools' 24-hour times. Never write 24-hour times in the answer.
 - Keep it under about 150 words unless the user asks for more. Use plain language and \
 round numbers the way the tools report them.
 """

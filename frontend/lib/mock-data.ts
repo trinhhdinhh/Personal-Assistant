@@ -9,7 +9,7 @@ export type Tone = "primary" | "success" | "warning" | "destructive" | "muted";
 
 export const agentStatus = {
   online: true,
-  lastSync: "07:58",
+  lastSync: "7:58 AM",
   sources: ["Apple Watch", "iCloud Calendar"],
 };
 
@@ -69,7 +69,7 @@ export const report: Report = {
   followUps: [
     {
       id: 31,
-      suggestion: "Lights out by 11:15 before busy days",
+      suggestion: "Lights out by 11:15 PM before busy days",
       result: "Worked",
       tone: "success" as Tone,
       detail: "Readiness on busy days +1.1 · n = 14",

@@ -20,7 +20,7 @@ from django.utils import timezone as dj_timezone
 from agent.models import Suggestion
 from data.models import CalendarEvent
 from data.summaries import daily_summaries, mood_label
-from data.timeutils import today, user_tz
+from data.timeutils import clock12, today, user_tz
 
 MIN_DAYS = 14          # fewer days than this and a pattern is "early"
 MAX_RANGE_DAYS = 120   # longest date range a tool accepts
@@ -402,7 +402,7 @@ def make_ics_event(title: str, date: str, start_time: str, duration_minutes: int
     return {
         "filename": f"{day.isoformat()}-{slug}.ics",
         "ics": "\r\n".join(_ics_fold(line) for line in lines) + "\r\n",
-        "summary": f"{title}, {day:%a %b} {day.day} at {start_time} for {duration_minutes} min",
+        "summary": f"{title}, {day:%a %b} {day.day} at {clock12(f'{starts_at:%H:%M}')} for {duration_minutes} min",
         "note": "This is a file for the user to add if they choose. Nothing was added to their calendar.",
     }
 

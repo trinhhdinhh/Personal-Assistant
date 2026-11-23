@@ -14,7 +14,7 @@ from agent import tools
 from agent.tools import BUSY_HOURS
 from data.summaries import daily_summaries
 from data.synthetic import mood_label as apple_mood_label
-from data.timeutils import today
+from data.timeutils import clock12, clock12_range, today
 
 HISTORY_DAYS = 60
 MINUS = "−"
@@ -22,7 +22,7 @@ MINUS = "−"
 # The patterns the pages explain: (x, y, lag, "when", "affects", unit)
 FACTORS = [
     ("busy_day", "readiness", 1, "7h+ booked", "Next-day readiness", "pts"),
-    ("late_event", "sleep_hours", 1, "Event ends 9:30pm+", "Sleep that night", "min"),
+    ("late_event", "sleep_hours", 1, "Event ends 9:30 PM+", "Sleep that night", "min"),
     ("short_sleep", "readiness", 0, "Sleep under 6h", "Readiness that morning", "pts"),
     ("workout_day", "mood", 1, "Workout day", "Next-day mood", "mood"),
 ]
@@ -146,37 +146,37 @@ def _week_adjustments(calls: Calls, forecast: dict, found: dict) -> list[dict]:
             if slot:
                 begin = slot["start"]
                 finish = _clock(prev, begin, length)
-                title = f"Move {prev:%A}'s {event['title'].lower()} to {begin}–{finish}"
-                why = (f"It ends at {event['end']}, the night before your hardest day. After late events you sleep "
+                title = f"Move {prev:%A}'s {event['title'].lower()} to {clock12_range(begin, finish)}"
+                why = (f"It ends at {clock12(event['end'])}, the night before your hardest day. After late events you sleep "
                        f"{late['yes']:g}h vs {late['no']:g}h on other nights.")
                 ics = calls("make_ics_event", title=event["title"], date=prev.isoformat(), start_time=begin,
                             duration_minutes=length, notes="Moved earlier so it doesn't run late before a heavy day.")
                 adjustments.append(_suggestion(
                     f"move-{prev}", title, why, f"n = {late['n']} late nights",
                     {"text": title, "metric": "sleep_hours", "direction": "up", "start_date": worst["date"]},
-                    time=f"{begin}–{finish}", ics=ics))
+                    time=clock12_range(begin, finish), ics=ics))
 
     # 2. A short walk in the longest gap on the hardest day.
     slots = calls("find_free_time", date=worst["date"], min_minutes=20, day_start="10:00", day_end="18:00")["free_slots"]
     if slots:
         slot = max(slots, key=lambda s: s["minutes"])
         finish = _clock(worst_day, slot["start"], 20)
-        title = f"Add a 20-minute walk {worst_day:%A} at {slot['start']}"
+        title = f"Add a 20-minute walk {worst_day:%A} at {clock12(slot['start'])}"
         why = (f"{worst_day:%A} is your hardest day: {worst['booked_hours']:g}h booked, forecast readiness "
                f"{worst['expected_readiness']:.1f} vs your usual {forecast['usual']['readiness']:.1f}. "
-               f"Your longest gap is {slot['start']}–{slot['end']}.")
+               f"Your longest gap is {clock12_range(slot['start'], slot['end'])}.")
         ics = calls("make_ics_event", title="Walk outside", date=worst["date"], start_time=slot["start"],
                     duration_minutes=20, notes="A short break on a heavy day.")
         adjustments.append(_suggestion(
             f"walk-{worst['date']}", title, why, f"{forecast['history_days_with_data']} days of history",
             {"text": title, "metric": "steps", "direction": "up", "start_date": worst["date"]},
-            time=f"{slot['start']}–{finish}", ics=ics))
+            time=clock12_range(slot["start"], finish), ics=ics))
 
     # 3. Protect sleep before the day after the hardest one, if it's risky too.
     short = found.get("short_sleep")
     after = next((d for d in risky if date.fromisoformat(d["date"]) == worst_day + timedelta(days=1)), None)
     if after and short:
-        title = f"Wind down by 22:30 on {worst_day:%A}"
+        title = f"Wind down by {clock12('22:30')} on {worst_day:%A}"
         why = (f"{date.fromisoformat(after['date']):%A} is forecast {after['risk']} risk too. Mornings after under 6h "
                f"of sleep, your readiness averages {short['yes']:g} vs {short['no']:g}.")
         ics = calls("make_ics_event", title="Wind down", date=worst["date"], start_time="22:30",
@@ -184,7 +184,7 @@ def _week_adjustments(calls: Calls, forecast: dict, found: dict) -> list[dict]:
         adjustments.append(_suggestion(
             f"winddown-{worst['date']}", title, why, f"n = {short['n']} short nights",
             {"text": title, "metric": "sleep_hours", "direction": "up", "start_date": after["date"]},
-            time="22:30", ics=ics))
+            time=clock12("22:30"), ics=ics))
     return adjustments
 
 
@@ -233,7 +233,10 @@ def brief_view(day: date | None = None) -> dict:
                 for e in events if e["start"] != "all day"]
     if walk_slot:
         schedule.append({"start": walk_slot[0], "end": walk_slot[1], "title": "Free · walk suggested", "kind": "suggested"})
-    schedule.sort(key=lambda item: item["start"])
+    schedule.sort(key=lambda item: item["start"])  # sort while still 24-hour, then show as 12-hour
+    for item in schedule:
+        item["start"], item["end"] = clock12(item["start"]), clock12(item["end"])
+    free = [{**slot, "start": clock12(slot["start"]), "end": clock12(slot["end"])} for slot in free]
 
     return {
         "date": day.isoformat(),
@@ -267,8 +270,9 @@ def _today_suggestions(calls, day, events, free, forecast, found):
             f"On class days you average {groups['class_day_yes']['average_steps']:,.0f} steps vs "
             f"{groups['class_day_no']['average_steps']:,.0f} on other days.",
             f"n = {groups['class_day_yes']['days']} class days",
-            {"text": f"{title} ({slot['start']}–{finish})", "metric": "steps", "direction": "up", "start_date": day.isoformat()},
-            time=f"{slot['start']}–{finish}",
+            {"text": f"{title} ({clock12_range(slot['start'], finish)})", "metric": "steps", "direction": "up",
+             "start_date": day.isoformat()},
+            time=clock12_range(slot["start"], finish),
             ics=calls("make_ics_event", title="Walk outside", date=day.isoformat(), start_time=slot["start"],
                       duration_minutes=30, notes="Class days tend to have fewer steps.")))
 
@@ -276,7 +280,7 @@ def _today_suggestions(calls, day, events, free, forecast, found):
     tomorrow = next((d for d in forecast["days"] if d["date"] == (day + timedelta(days=1)).isoformat()), None)
     short = found.get("short_sleep")
     if tomorrow and short and (tomorrow["risk"] != "low" or tomorrow["busy"]):
-        title = "Lights out by 23:00 tonight"
+        title = f"Lights out by {clock12('23:00')} tonight"
         risk = "" if tomorrow["risk"] == "low" else f" and is forecast {tomorrow['risk']} risk"
         suggestions.append(_suggestion(
             f"sleep-{day}", title,
@@ -284,7 +288,7 @@ def _today_suggestions(calls, day, events, free, forecast, found):
             f"Mornings after under 6h of sleep, your readiness averages {short['yes']:g} vs {short['no']:g}.",
             f"n = {short['n']} short nights",
             {"text": title, "metric": "sleep_hours", "direction": "up", "start_date": tomorrow["date"]},
-            time="22:45",
+            time=clock12("22:45"),
             ics=calls("make_ics_event", title="Wind down for bed", date=day.isoformat(), start_time="22:45",
                       duration_minutes=15, notes="Heavy day tomorrow.")))
 
@@ -298,7 +302,7 @@ def _today_suggestions(calls, day, events, free, forecast, found):
             f"The day after a workout your mood averages {workout['yes']:+.2f} vs {workout['no']:+.2f} otherwise.",
             f"n = {workout['n']} workout days",
             {"text": title, "metric": "mood", "direction": "up", "start_date": (day + timedelta(days=1)).isoformat()},
-            time=f"{gym['start']}–{gym['end']}"))
+            time=clock12_range(gym["start"], gym["end"])))
     return suggestions, walk_slot
 
 

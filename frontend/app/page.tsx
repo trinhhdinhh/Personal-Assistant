@@ -145,7 +145,7 @@ function BriefView({ brief }: { brief: Brief }) {
 function ScheduleRow({ item }: { item: ScheduleItem }) {
   return (
     <div className="flex items-stretch gap-3.5">
-      <span className="text-muted-foreground w-12 shrink-0 pt-2 font-mono text-xs">{item.start}</span>
+      <span className="text-muted-foreground w-16 shrink-0 pt-2 font-mono text-xs">{item.start}</span>
       <div
         className={cn(
           "flex flex-1 items-center justify-between gap-2 rounded-lg px-3.5 py-2",

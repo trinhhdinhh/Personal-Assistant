@@ -16,6 +16,21 @@ def today() -> date:
     return datetime.now(user_tz()).date()
 
 
+def clock12(hhmm: str) -> str:
+    """Show a 24-hour "14:30" as "2:30 PM".
+
+    Tools and code keep 24-hour HH:MM (easy to sort and compare); only what
+    the user sees is converted.
+    """
+    hour, minute = (int(part) for part in hhmm.split(":"))
+    return f"{hour % 12 or 12}:{minute:02d} {'AM' if hour < 12 else 'PM'}"
+
+
+def clock12_range(start: str, end: str) -> str:
+    """"14:30", "15:00" -> "2:30 PM–3:00 PM"."""
+    return f"{clock12(start)}–{clock12(end)}"
+
+
 def to_local_date(moment: datetime) -> date:
     """Return the calendar date of `moment` in the user's timezone.
 

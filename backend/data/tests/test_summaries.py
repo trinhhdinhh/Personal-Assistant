@@ -129,3 +129,12 @@ def test_empty_day_has_a_row_of_unknowns():
 def test_end_before_start_is_rejected():
     with pytest.raises(ValueError):
         daily_summaries(DAY, DAY - timedelta(days=1))
+
+
+def test_clock12_shows_times_with_am_pm():
+    from data.timeutils import clock12, clock12_range
+    assert clock12("00:15") == "12:15 AM"
+    assert clock12("09:05") == "9:05 AM"
+    assert clock12("12:00") == "12:00 PM"
+    assert clock12("23:30") == "11:30 PM"
+    assert clock12_range("14:45", "16:15") == "2:45 PM–4:15 PM"

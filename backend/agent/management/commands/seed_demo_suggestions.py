@@ -17,7 +17,7 @@ from data.report import last_full_week
 # (text, metric, direction, days after the Monday before the report's week)
 # With today = Mon Nov 16 the report covers Nov 9-15 and these start on Nov 2, 3 and 6.
 DEMO = [
-    ("Lights out by 23:00 before busy days", "sleep_hours", "up", 0),
+    ("Lights out by 11:00 PM before busy days", "sleep_hours", "up", 0),
     ("Take a 30-minute walk in your free gap on class days", "steps", "up", 1),
     ("Keep your planned gym sessions", "mood", "up", 4),
 ]
