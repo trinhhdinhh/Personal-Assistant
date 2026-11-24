@@ -20,7 +20,8 @@ It's a university course project (LSU, agentic systems option). The grader wants
 2. **Weekly life report:** a Sunday summary of sleep, recovery, mood and activity vs last week, where my time went, and the biggest changes, with charts.
 3. **Smart suggestions in free time:** finds real gaps in my schedule ("you're free 3:00–3:45, take a walk") and creates a calendar file I can tap to add.
 4. **Suggestion follow-up:** remembers what it suggested and checks a week later whether it helped.
-5. **Ask anything:** I can ask questions about my life ("why was last week rough?") and get answers with numbers, charts and the steps the agent took.
+5. **Edit my schedule:** the Week page shows the week as a calendar. I can add, move or delete events (today onward) and the forecast updates. Changes stay in the app's database, never written back to iCloud, and survive the daily reseed. Only I edit; the agent stays read-only.
+6. **Ask anything:** I can ask questions about my life ("why was last week rough?") and get answers with numbers, charts and the steps the agent took.
 
 ## Data sources
 
@@ -70,7 +71,7 @@ A synthetic dataset (Sep 1 onward, growing daily) with planted patterns (e.g. bu
 
 ## Out of scope (for now)
 
-Screen time, manual check-ins, location, assignments, bank data, writing to the calendar, a separate mobile app, Mac integrations (menu bar, widgets), hosting or deploying the app, and using it from the Claude app (connector). Real data import comes after demo day.
+Screen time, manual check-ins, location, assignments, bank data, writing back to iCloud Calendar, a separate mobile app, Mac integrations (menu bar, widgets), hosting or deploying the app, and using it from the Claude app (connector). Real data import comes after demo day.
 
 ## Timeline
 

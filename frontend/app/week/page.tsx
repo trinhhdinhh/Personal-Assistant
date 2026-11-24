@@ -5,6 +5,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/hud";
 import { SuggestionItem } from "@/components/suggestion";
+import { WeekCalendar } from "@/components/week-calendar";
 import { getForecast, type ForecastDay, type Risk, type WeekForecast } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +63,16 @@ function WeekView({ forecast }: { forecast: WeekForecast }) {
           <DayCard key={d.iso} day={d} />
         ))}
       </section>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Your week on the calendar</CardTitle>
+          <CardDescription>Every booked hour, drawn where it falls. Dashed blocks are suggestions.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <WeekCalendar days={forecast.days} suggestions={forecast.adjustments} />
+        </CardContent>
+      </Card>
 
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Card>

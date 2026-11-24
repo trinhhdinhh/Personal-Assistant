@@ -100,3 +100,17 @@ class CalendarEvent(SourceRecord):
 
     def __str__(self) -> str:
         return f"{self.title} ({self.category}) @ {self.occurred_at:%Y-%m-%d %H:%M}"
+
+
+class RemovedEvent(models.Model):
+    """A seeded (synthetic) event the user deleted on the Week page.
+
+    `seed_synthetic` rebuilds synthetic events every day, so without this a deleted
+    event would come back. The seeder skips any uid listed here.
+    """
+
+    uid = models.CharField(max_length=255, unique=True)
+    removed_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return self.uid

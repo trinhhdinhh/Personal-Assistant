@@ -8,6 +8,7 @@
 day and the history grows by that day; earlier days stay exactly the same.
 
 Only rows with source="synthetic" are deleted, so real data is never touched.
+Events the user added, edited or deleted on the Week page stay as they left them.
 """
 from datetime import date
 
@@ -16,6 +17,7 @@ from django.db import transaction
 
 from data import synthetic, timeutils
 from data.models import CalendarEvent, HealthSample, SleepSession
+from data.schedule import user_changed_uids
 from data.timeutils import to_local_date
 
 
@@ -77,6 +79,10 @@ class Command(BaseCommand):
             for d in history
             for s in d.samples
         ]
+
+        # Keep the user's own changes from the Week page: skip events they edited or deleted.
+        skip = user_changed_uids()
+        events = [e for e in events if e.uid not in skip]
 
         CalendarEvent.objects.bulk_create(events)
         SleepSession.objects.bulk_create(sleeps)

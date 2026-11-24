@@ -14,7 +14,9 @@ from agent import tools
 from agent.tools import BUSY_HOURS
 from data.summaries import daily_summaries
 from data.synthetic import mood_label as apple_mood_label
-from data.timeutils import clock12, clock12_range, today
+from data.models import CalendarEvent
+from data.schedule import MANUAL
+from data.timeutils import clock12, clock12_range, today, user_tz
 
 HISTORY_DAYS = 60
 MINUS = "−"
@@ -56,9 +58,27 @@ def _clock(day: date, hhmm: str, plus_minutes: int = 0) -> str:
     return f"{moment:%H:%M}"
 
 
-def _suggestion(key, title, why, evidence, track, time=None, ics=None) -> dict:
-    """`track` is what gets saved if the user adds it: {text, metric, direction, start_date}."""
-    return {"id": key, "title": title, "time": time, "why": why, "evidence": evidence, "ics": ics, "track": track}
+def _suggestion(key, title, why, evidence, track, time=None, ics=None, slot=None) -> dict:
+    """`track` is what gets saved if the user adds it: {text, metric, direction, start_date}.
+    `slot` ({date, start, end} in 24-hour time) lets the Week calendar draw where it would go."""
+    return {"id": key, "title": title, "time": time, "why": why, "evidence": evidence, "ics": ics,
+            "track": track, "slot": slot}
+
+
+def _calendar_blocks(start: date, end: date) -> dict[str, list[dict]]:
+    """The events for the Week calendar, by date. Read straight from the database (not a tool),
+    because the page needs each event's id to edit it. start/end stay 24-hour for positioning;
+    `time` is for display. `editable` is False for past days, which are the agent's history."""
+    blocks: dict[str, list[dict]] = {}
+    for e in CalendarEvent.objects.filter(local_date__range=(start, end)).order_by("occurred_at"):
+        begin, finish = (f"{m.astimezone(user_tz()):%H:%M}" for m in (e.occurred_at, e.end_at))
+        blocks.setdefault(e.local_date.isoformat(), []).append({
+            "id": e.pk, "title": e.title, "category": e.category, "allDay": e.all_day,
+            "start": None if e.all_day else begin, "end": None if e.all_day else finish,
+            "time": "All day" if e.all_day else clock12_range(begin, finish),
+            "mine": e.source == MANUAL, "editable": not e.all_day and e.local_date >= today(),
+        })
+    return blocks
 
 
 # ---------- patterns ----------
@@ -88,6 +108,8 @@ def week_view(start: date | None = None) -> dict:
     start = start or today()
     forecast = calls("forecast_week", start_date=start.isoformat())
     found = patterns(calls, start)
+    end = start + timedelta(days=6)
+    calendar = _calendar_blocks(start, end)
 
     days = []
     for d in forecast["days"]:
@@ -106,9 +128,9 @@ def week_view(start: date | None = None) -> dict:
             "risk": d["risk"].capitalize(),
             "note": note[:1].upper() + note[1:] if note else None,
             "today": day == today(),
+            "events": calendar.get(d["date"], []),
         })
 
-    end = start + timedelta(days=6)
     return {
         "label": f"{start:%b} {start.day} – {end:%b} {end.day}".upper() if end.month != start.month
                  else f"{start:%b} {start.day} – {end.day}".upper(),
@@ -154,7 +176,8 @@ def _week_adjustments(calls: Calls, forecast: dict, found: dict) -> list[dict]:
                 adjustments.append(_suggestion(
                     f"move-{prev}", title, why, f"n = {late['n']} late nights",
                     {"text": title, "metric": "sleep_hours", "direction": "up", "start_date": worst["date"]},
-                    time=clock12_range(begin, finish), ics=ics))
+                    time=clock12_range(begin, finish), ics=ics,
+                    slot={"date": prev.isoformat(), "start": begin, "end": finish}))
 
     # 2. A short walk in the longest gap on the hardest day.
     slots = calls("find_free_time", date=worst["date"], min_minutes=20, day_start="10:00", day_end="18:00")["free_slots"]
@@ -170,7 +193,8 @@ def _week_adjustments(calls: Calls, forecast: dict, found: dict) -> list[dict]:
         adjustments.append(_suggestion(
             f"walk-{worst['date']}", title, why, f"{forecast['history_days_with_data']} days of history",
             {"text": title, "metric": "steps", "direction": "up", "start_date": worst["date"]},
-            time=clock12_range(slot["start"], finish), ics=ics))
+            time=clock12_range(slot["start"], finish), ics=ics,
+            slot={"date": worst["date"], "start": slot["start"], "end": finish}))
 
     # 3. Protect sleep before the day after the hardest one, if it's risky too.
     short = found.get("short_sleep")
@@ -184,7 +208,8 @@ def _week_adjustments(calls: Calls, forecast: dict, found: dict) -> list[dict]:
         adjustments.append(_suggestion(
             f"winddown-{worst['date']}", title, why, f"n = {short['n']} short nights",
             {"text": title, "metric": "sleep_hours", "direction": "up", "start_date": after["date"]},
-            time=clock12("22:30"), ics=ics))
+            time=clock12("22:30"), ics=ics,
+            slot={"date": worst["date"], "start": "22:30", "end": "23:00"}))
     return adjustments
 
 

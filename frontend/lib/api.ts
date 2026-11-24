@@ -53,7 +53,43 @@ export type PageSuggestion = {
   evidence: string;
   ics: IcsFile | null;
   track: { text: string; metric: string; direction: "up" | "down"; start_date: string };
+  /** Where it would go on the Week calendar (24-hour times). Only Week suggestions have one. */
+  slot?: { date: string; start: string; end: string } | null;
 };
+
+export type Category = "class" | "work" | "study" | "gym" | "social" | "other";
+
+/** One event on the Week calendar. start/end are 24-hour HH:MM for positioning; `time` is the 12-hour label. */
+export type CalendarBlock = {
+  id: number;
+  title: string;
+  category: Category;
+  allDay: boolean;
+  start: string | null;
+  end: string | null;
+  time: string;
+  mine: boolean; // added or edited by you on the Week page
+  editable: boolean; // false for past days (the agent's history)
+};
+
+// ---------- Editing the schedule  (POST/PUT/DELETE /api/events, backend/data/schedule.py) ----------
+
+export type EventInput = { title: string; date: string; start: string; end: string; category: Category };
+
+/** Called from the browser. `id` null adds a new event; otherwise it edits that one. */
+export async function saveEvent(id: number | null, event: EventInput): Promise<void> {
+  const res = await fetch(id === null ? "/api/events" : `/api/events/${id}`, {
+    method: id === null ? "POST" : "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(event),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Saving failed (${res.status}).`);
+}
+
+export async function deleteEvent(id: number): Promise<void> {
+  const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Deleting failed (${res.status}).`);
+}
 
 export type ForecastDay = {
   label: string;
@@ -64,6 +100,7 @@ export type ForecastDay = {
   risk: Risk;
   note: string | null;
   today: boolean;
+  events: CalendarBlock[];
 };
 
 export type WeekForecast = {

@@ -35,6 +35,20 @@ def test_week_adjustments_fit_real_gaps_and_come_with_files(seeded):
     assert "BEGIN:VEVENT" in move["ics"]["ics"]
     assert move["track"] == {"text": move["title"], "metric": "sleep_hours", "direction": "up", "start_date": "2026-11-19"}
     assert adjustments["walk-2026-11-19"]["time"] == "12:15 PM–12:35 PM"
+    assert move["slot"] == {"date": "2026-11-18", "start": "14:45", "end": "16:15"}  # where the calendar draws it
+
+
+def test_week_days_carry_their_events_for_the_calendar(seeded):
+    days = {d["label"]: d for d in week_view()["days"]}
+    wed = days["Wed"]["events"]
+    assert [e["title"] for e in wed] == ["CS 4100 Lecture", "Study block", "MATH 3355 Lecture", "Gym", "Late study"]
+    late = wed[-1]
+    assert (late["start"], late["end"], late["time"], late["category"]) == ("21:00", "22:30", "9:00 PM–10:30 PM", "study")
+    # The calendar's blocks add up to the booked hours it reports.
+    for day in days.values():
+        hours = sum((int(e["end"][:2]) * 60 + int(e["end"][3:]) - int(e["start"][:2]) * 60 - int(e["start"][3:])) / 60
+                    for e in day["events"] if not e["allDay"])
+        assert round(hours, 2) == day["booked"]
 
 
 def test_pages_save_nothing_on_load(seeded):
